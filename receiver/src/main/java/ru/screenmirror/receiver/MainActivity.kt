@@ -26,7 +26,7 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
     private val alive = AtomicBoolean(true)
     @Volatile private var decoder: MediaCodec? = null
     @Volatile private var serverSocket: ServerSocket? = null
-    @Volatile private var registeredService: NsdServiceInfo? = null
+    @Volatile private var registrationListener: NsdManager.RegistrationListener? = null
     private val serviceType = "_screenmirror._tcp."
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -73,25 +73,30 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
             serviceType = this@MainActivity.serviceType
             port = 8988
         }
-        nsdManager.registerService(info, NsdManager.PROTOCOL_DNS_SD, object : NsdManager.RegistrationListener {
+        val listener = object : NsdManager.RegistrationListener {
             override fun onServiceRegistered(serviceInfo: NsdServiceInfo) {
-                registeredService = serviceInfo
-                runOnUiThread { status.text = "ScreenMirror RU — ТВ\nОжидание телефона…\nТелевизор доступен для автообнаружения" }
+                runOnUiThread { status.text = "ScreenMirror RU — ТВ\\nОжидание телефона…\\nТелевизор доступен для автообнаружения" }
             }
             override fun onRegistrationFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
+                registrationListener = null
                 runOnUiThread { status.text = "Приём включён, но автообнаружение недоступно (код $errorCode). Можно подключиться по IP." }
             }
-            override fun onServiceUnregistered(serviceInfo: NsdServiceInfo) { registeredService = null }
+            override fun onServiceUnregistered(serviceInfo: NsdServiceInfo) { registrationListener = null }
             override fun onUnregistrationFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {}
-        })
+        }
+        registrationListener = listener
+        try {
+            nsdManager.registerService(info, NsdManager.PROTOCOL_DNS_SD, listener)
+        } catch (_: Exception) {
+            registrationListener = null
+            runOnUiThread { status.text = "Приём включён. Автообнаружение недоступно; можно подключиться по IP." }
+        }
     }
 
     private fun unregisterReceiver() {
-        val info = registeredService ?: return
-        registeredService = null
-        try {
-            // The registration listener is retained by NSD; unregistering is performed in onDestroy.
-        } catch (_: Exception) {}
+        val listener = registrationListener ?: return
+        registrationListener = null
+        try { nsdManager.unregisterService(listener) } catch (_: Exception) {}
     }
 
     private fun handle(socket: Socket) {
