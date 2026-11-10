@@ -33,6 +33,7 @@ class MainActivity : Activity() {
     private var selectedToken = ""
     private val projectionRequest = 4102
     private val audioPermissionRequest = 4103
+    private val cameraPermissionRequest = 4104
     private val serviceType = "_screenmirror._tcp."
 
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
@@ -78,11 +79,7 @@ class MainActivity : Activity() {
         layout.addView(Button(this).apply {
             text = "Сканировать QR-код телевизора"
             setTextColor(Color.WHITE)
-            setOnClickListener {
-                IntentIntegrator(this@MainActivity).setDesiredBarcodeFormats(IntentIntegrator.QR_CODE)
-                    .setPrompt("Наведите камеру на QR-код ScreenMirror RU на телевизоре")
-                    .setBeepEnabled(false).setOrientationLocked(false).initiateScan()
-            }
+            setOnClickListener { requestCameraAndScan() }
         })
         layout.addView(TextView(this).apply { text = "Качество трансляции"; setTextColor(android.graphics.Color.WHITE); setPadding(0, pad, 0, 4) })
         quality = Spinner(this).apply {
@@ -182,6 +179,31 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun requestCameraAndScan() {
+        if (!packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_CAMERA_ANY)) {
+            status.text = "На этом телефоне не обнаружена камера. Подключитесь к телевизору автоматически или введите IP и код вручную."
+            return
+        }
+        if (android.os.Build.VERSION.SDK_INT >= 23 &&
+            checkSelfPermission(android.Manifest.permission.CAMERA) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(arrayOf(android.Manifest.permission.CAMERA), cameraPermissionRequest)
+            return
+        }
+        launchQrScanner()
+    }
+
+    private fun launchQrScanner() {
+        try {
+            IntentIntegrator(this).setDesiredBarcodeFormats(IntentIntegrator.QR_CODE)
+                .setPrompt("Наведите камеру на QR-код ScreenMirror RU на телевизоре")
+                .setBeepEnabled(false).setOrientationLocked(false).initiateScan()
+        } catch (_: android.content.ActivityNotFoundException) {
+            status.text = "Не удалось открыть сканер QR-кодов. Проверьте установку приложения и подключитесь автоматически или вручную."
+        } catch (_: SecurityException) {
+            status.text = "Нет доступа к камере. Разрешите ScreenMirror RU использовать камеру в настройках Android."
+        }
+    }
+
     private fun requestAudioOrStart() {
         if (audioSwitch.isChecked && android.os.Build.VERSION.SDK_INT >= 29 &&
             checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
@@ -229,7 +251,13 @@ class MainActivity : Activity() {
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == audioPermissionRequest) {
+        if (requestCode == cameraPermissionRequest) {
+            if (grantResults.firstOrNull() == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                launchQrScanner()
+            } else {
+                status.text = "Без доступа к камере QR-код не отсканировать. Разрешите камеру или подключитесь автоматически."
+            }
+        } else if (requestCode == audioPermissionRequest) {
             if (grantResults.firstOrNull() != android.content.pm.PackageManager.PERMISSION_GRANTED) {
                 audioSwitch.isChecked = false
                 status.text = "Разрешение на звук не выдано. Продолжим трансляцию без звука."
