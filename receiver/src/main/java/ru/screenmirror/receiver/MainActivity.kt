@@ -11,6 +11,7 @@ import android.media.MediaFormat
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
 import android.os.Bundle
+import android.os.Build
 import android.view.Gravity
 import android.view.Surface
 import android.view.SurfaceHolder

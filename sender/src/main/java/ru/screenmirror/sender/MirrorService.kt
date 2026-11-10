@@ -223,7 +223,7 @@ class MirrorService : Service() {
     @Suppress("DEPRECATION")
     private fun metricsRefreshRate(): Float = (getSystemService(WINDOW_SERVICE) as WindowManager).defaultDisplay.refreshRate
 
-    private var audioSocket: Socket? = null
+
     private fun captureAudio(ip: String) {
         if (Build.VERSION.SDK_INT < 29) return
         var record: AudioRecord? = null
