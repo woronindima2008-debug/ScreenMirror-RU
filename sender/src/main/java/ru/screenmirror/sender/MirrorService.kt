@@ -102,7 +102,6 @@ class MirrorService : Service() {
             videoEnabled = !videoEnabled
             picture.text = if (videoEnabled) "▣ Изображение: ВКЛ" else "▣ Изображение: ВЫКЛ"
             sendControl(if (videoEnabled) 4 else 5)
-            if (videoEnabled) requestKeyFrame()
         }
         finish.setOnClickListener { stopSelf() }
         root.addView(head); root.addView(sound); root.addView(picture); root.addView(finish)
@@ -212,7 +211,7 @@ class MirrorService : Service() {
                     }
                     index >= 0 -> {
                         val buffer = encoder!!.getOutputBuffer(index)
-                        if (buffer != null && info.size > 0 && formatSent && videoEnabled) {
+                        if (buffer != null && info.size > 0 && formatSent) {
                             buffer.position(info.offset); buffer.limit(info.offset + info.size)
                             val bytes = ByteArray(info.size); buffer.get(bytes)
                             out.writeInt(bytes.size); out.write(bytes)
