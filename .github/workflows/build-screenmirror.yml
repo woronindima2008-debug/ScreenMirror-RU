@@ -1,0 +1,145 @@
+name: Build ScreenMirror RU APKs
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/castlab-fcast-integration
+    paths:
+      - .github/workflows/build-screenmirror.yml
+
+permissions:
+  contents: read
+
+jobs:
+  tv-receiver:
+    name: Build Android TV receiver
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Fetch FCast Android receiver
+        run: |
+          git clone --depth 1 --branch android-v2.1.5 https://github.com/futo-org/fcast.git fcast
+
+      - name: Apply ScreenMirror RU branding
+        working-directory: fcast/receivers/android
+        shell: bash
+        run: |
+          set -euo pipefail
+          sed -i 's/applicationId "com.futo.fcast.receiver"/applicationId "ru.screenmirror.tv"/' app/build.gradle
+          sed -i 's/buildConfigField "boolean", "IS_PLAYSTORE_VERSION", "false"/buildConfigField "boolean", "IS_PLAYSTORE_VERSION", "true"/' app/build.gradle
+          sed -i 's/<string name="app_name">FCast-приемник<\/string>/<string name="app_name">ScreenMirror RU</string>/' app/src/main/res/values-ru/strings.xml
+          sed -i 's/<string name="app_name">FCast Receiver<\/string>/<string name="app_name">ScreenMirror RU</string>/' app/src/main/res/values/strings.xml
+          sed -i 's#<string name="sender_app_download_text">.*</string>#<string name="sender_app_download_text">Установите ScreenMirror RU на телефон и подключитесь к этому телевизору</string>#' app/src/main/res/values-ru/strings.xml
+          sed -i 's#<string name="sender_app_download_url">.*</string>#<string name="sender_app_download_url"></string>#' app/src/main/res/values-ru/strings.xml
+          sed -i 's#<string name="sender_app_download_text">.*</string>#<string name="sender_app_download_text">Install ScreenMirror RU on your phone to connect to this TV</string>#' app/src/main/res/values/strings.xml
+          sed -i 's#<string name="sender_app_download_url">.*</string>#<string name="sender_app_download_url"></string>#' app/src/main/res/values/strings.xml
+
+      - name: Build TV APK
+        working-directory: fcast/receivers/android
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon :app:assembleDefaultFlavorDebug
+
+      - name: Upload TV APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ScreenMirror-RU-Android-TV-debug
+          path: fcast/receivers/android/app/build/outputs/apk/defaultFlavor/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14
+
+  phone-sender:
+    name: Build Android phone sender
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.14.3'
+
+      - name: Download CastLab 1.7.0 source
+        run: |
+          set -euo pipefail
+          mkdir castlab
+          curl -fL --retry 3 https://f-droid.org/repo/app.fedilab.castlab_16_src.tar.gz -o castlab-source.tar.gz
+          tar -xzf castlab-source.tar.gz -C castlab
+          root="$(find castlab -path '*/node_modules' -prune -o -type f -name package.json -print -quit | xargs -r dirname)"
+          test -n "$root"
+          echo "CASTLAB_ROOT=$root" >> "$GITHUB_ENV"
+
+      - name: Apply ScreenMirror RU branding
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$CASTLAB_ROOT"
+          node <<'NODE'
+          const fs = require('fs');
+          const p = JSON.parse(fs.readFileSync('app.json', 'utf8'));
+          p.expo.name = 'ScreenMirror RU';
+          p.expo.slug = 'screenmirror-ru';
+          p.expo.android = p.expo.android || {};
+          p.expo.android.package = 'ru.screenmirror.mobile';
+          fs.writeFileSync('app.json', JSON.stringify(p, null, 2) + '\n');
+          NODE
+          sed -i '/signingConfig /d' android/app/build.gradle 2>/dev/null || true
+
+      - name: Install JavaScript dependencies
+        working-directory: ${{ env.CASTLAB_ROOT }}
+        run: npm install --legacy-peer-deps --no-audit --no-fund
+
+      - name: Generate native Android project
+        working-directory: ${{ env.CASTLAB_ROOT }}
+        env:
+          EXPO_NO_TELEMETRY: '1'
+        run: npx expo prebuild --platform android --clean
+
+      - name: Set Android application label and package
+        working-directory: ${{ env.CASTLAB_ROOT }}
+        run: |
+          sed -i 's/applicationId .*/applicationId "ru.screenmirror.mobile"/' android/app/build.gradle
+          sed -i 's/namespace .*/namespace "ru.screenmirror.mobile"/' android/app/build.gradle
+          sed -i '/signingConfig /d' android/app/build.gradle
+
+      - name: Build phone APK
+        working-directory: ${{ env.CASTLAB_ROOT }}/android
+        run: gradle --no-daemon :app:assembleDebug
+
+      - name: Upload phone APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ScreenMirror-RU-Android-phone-debug
+          path: ${{ env.CASTLAB_ROOT }}/android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14
