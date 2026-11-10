@@ -247,6 +247,9 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
                 val input = DataInputStream(socket.getInputStream())
                 val sampleRate = input.readInt()
                 val channels = input.readInt()
+                val audioCsdSize = input.readInt()
+                require(audioCsdSize in 0..4096)
+                val audioCsd = ByteArray(audioCsdSize).also { if (audioCsdSize > 0) input.readFully(it) }
                 require(sampleRate in 8000..96000 && channels in 1..2)
                 val channelOut = if (channels == 1) AudioFormat.CHANNEL_OUT_MONO else AudioFormat.CHANNEL_OUT_STEREO
                 val min = AudioTrack.getMinBufferSize(sampleRate, channelOut, AudioFormat.ENCODING_PCM_16BIT).coerceAtLeast(8192)
@@ -256,6 +259,7 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
                     .setBufferSizeInBytes(min * 2).setTransferMode(AudioTrack.MODE_STREAM).build()
                 val format = MediaFormat.createAudioFormat(MediaFormat.MIMETYPE_AUDIO_AAC, sampleRate, channels).apply {
                     setInteger(MediaFormat.KEY_AAC_PROFILE, android.media.MediaCodecInfo.CodecProfileLevel.AACObjectLC)
+                    if (audioCsd.isNotEmpty()) setByteBuffer("csd-0", ByteBuffer.wrap(audioCsd))
                 }
                 codec = MediaCodec.createDecoderByType(MediaFormat.MIMETYPE_AUDIO_AAC)
                 codec.configure(format, null, null, 0)
