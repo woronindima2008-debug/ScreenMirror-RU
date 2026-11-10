@@ -14,6 +14,8 @@ import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
 import android.os.Build
 import android.os.IBinder
+import android.os.Handler
+import android.os.Looper
 import android.util.DisplayMetrics
 import android.view.WindowManager
 import java.io.DataOutputStream
@@ -35,12 +37,16 @@ class MirrorService : Service() {
         startForeground(7, notification())
         val ip = intent?.getStringExtra("ip") ?: return START_NOT_STICKY
         val resultCode = intent.getIntExtra("resultCode", 0)
-        val data = if (Build.VERSION.SDK_INT >= 33) intent.getParcelableExtra("projectionData", Intent::class.java)
-                   else @Suppress("DEPRECATION") intent.getParcelableExtra("projectionData")
+        val data = projectionIntent(intent)
         if (data == null) { stopSelf(); return START_NOT_STICKY }
         Thread { stream(ip, resultCode, data) }.start()
         return START_NOT_STICKY
     }
+
+    @Suppress("DEPRECATION")
+    private fun projectionIntent(intent: Intent): Intent? =
+        if (Build.VERSION.SDK_INT >= 33) intent.getParcelableExtra("projectionData", Intent::class.java)
+        else intent.getParcelableExtra("projectionData")
 
     private fun createNotification() {
         if (Build.VERSION.SDK_INT >= 26) {
@@ -79,6 +85,12 @@ class MirrorService : Service() {
             encoder!!.start()
             val manager = getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
             projection = manager.getMediaProjection(resultCode, data)
+            projection!!.registerCallback(object : MediaProjection.Callback() {
+                override fun onStop() {
+                    running = false
+                    try { socket?.close() } catch (_: Exception) {}
+                }
+            }, Handler(Looper.getMainLooper()))
             display = projection!!.createVirtualDisplay("ScreenMirrorRU", width, height, density,
                 DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR, inputSurface, null, null)
             running = true
