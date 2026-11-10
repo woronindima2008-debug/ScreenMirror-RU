@@ -17,7 +17,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 class PlaybackAudioSender(
     private val context: Context,
     private val projection: MediaProjection,
-    private val host: String
+    private val host: String,
+    private val token: String
 ) {
     private val running = AtomicBoolean(false)
     @Volatile private var record: AudioRecord? = null
@@ -66,6 +67,7 @@ class PlaybackAudioSender(
             output.writeInt(MAGIC)
             output.writeInt(SAMPLE_RATE)
             output.writeInt(CHANNELS)
+            output.writeUTF(token)
             output.flush()
 
             audioRecord.startRecording()
