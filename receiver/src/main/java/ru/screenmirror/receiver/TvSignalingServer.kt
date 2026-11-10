@@ -42,7 +42,4 @@ class TvSignalingServer(
         try { client?.send(message) } catch (_: Exception) {}
     }
 
-    override fun stop() {
-        try { super.stop(1000) } catch (_: Exception) {}
-    }
 }
