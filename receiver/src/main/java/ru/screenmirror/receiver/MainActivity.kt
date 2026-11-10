@@ -184,7 +184,7 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
                             when (input.readInt()) {
                                 2 -> { audioEnabled = true; runOnUiThread { status.text = "ScreenMirror RU\nЗвук включён" } }
                                 3 -> { audioEnabled = false; runOnUiThread { status.text = "ScreenMirror RU\nЗвук выключен" } }
-                                4 -> { videoPaused = false; runOnUiThread { pausedLayer.visibility = View.GONE; surfaceView.visibility = View.VISIBLE; status.text = "ScreenMirror RU\nИзображение включено" } }
+                                4 -> { videoPaused = false; runOnUiThread { pausedLayer.visibility = View.GONE; status.visibility = View.GONE } }
                                 5 -> { videoPaused = true; runOnUiThread { pausedLayer.visibility = View.VISIBLE; status.visibility = View.GONE } }
                             }
                         }
@@ -252,7 +252,7 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
                 try { codec?.stop() } catch (_: Exception) {}
                 try { codec?.release() } catch (_: Exception) {}
                 if (decoder === codec) decoder = null
-                if (alive.get()) runOnUiThread { pairingPanel.visibility = View.VISIBLE; status.visibility = View.VISIBLE; status.text = "ScreenMirror RU\\nОжидание подключения телефона…" }
+                if (alive.get()) runOnUiThread { pairingPanel.visibility = View.VISIBLE; status.visibility = View.VISIBLE; status.text = "ScreenMirror RU\nОжидание подключения телефона…" }
             }
         }
     }
