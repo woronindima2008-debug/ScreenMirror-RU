@@ -2,7 +2,7 @@ name: Android APK
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, feature/webrtc-p2p ]
   pull_request:
     branches: [ main ]
   workflow_dispatch:
