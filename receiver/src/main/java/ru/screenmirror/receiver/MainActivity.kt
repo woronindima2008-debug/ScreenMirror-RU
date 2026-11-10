@@ -59,7 +59,7 @@ class MainActivity : Activity() {
         header.addView(logo, LinearLayout.LayoutParams(dp(54), dp(54)))
         val brand = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(14), 0, 0, 0) }
         brand.addView(TextView(this).apply { text = "ScreenMirror RU"; textSize = 24f; setTextColor(Color.WHITE); setTypeface(null, android.graphics.Typeface.BOLD) })
-        brand.addView(TextView(this).apply { text = "Беспроводная трансляция экрана"; textSize = 14f; setTextColor(Color.rgb(183, 199, 220)) })
+        brand.addView(TextView(this).apply { text = "Беспроводная трансляция экрана"; textSize = 14f; setTextColor(Color.WHITE) })
         header.addView(brand, LinearLayout.LayoutParams(0, -2, 1f))
         root.addView(header, LinearLayout.LayoutParams(-1, -2))
 
