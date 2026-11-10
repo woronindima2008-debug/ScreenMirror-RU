@@ -47,7 +47,7 @@ class MainActivity : Activity() {
         root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setBackgroundColor(Color.BLACK)
+            setBackgroundResource(R.drawable.tv_pairing_bg)
             setPadding(dp(28), dp(10), dp(28), dp(14))
         }
         header = LinearLayout(this).apply {
@@ -91,8 +91,13 @@ class MainActivity : Activity() {
                 val streaming = message.contains("идёт трансляция", true) || message.contains("видео подключено", true)
                 header.visibility = if (streaming) View.GONE else View.VISIBLE
                 footer.visibility = if (streaming) View.GONE else View.VISIBLE
-                if (streaming) root.setPadding(0, 0, 0, 0)
-                else root.setPadding(dp(28), dp(10), dp(28), dp(14))
+                if (streaming) {
+                    root.setBackgroundColor(Color.BLACK)
+                    root.setPadding(0, 0, 0, 0)
+                } else {
+                    root.setBackgroundResource(R.drawable.tv_pairing_bg)
+                    root.setPadding(dp(28), dp(10), dp(28), dp(14))
+                }
                 renderer.setScalingType(org.webrtc.RendererCommon.ScalingType.SCALE_ASPECT_FIT)
             }
         }
