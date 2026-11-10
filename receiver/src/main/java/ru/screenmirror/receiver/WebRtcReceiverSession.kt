@@ -55,7 +55,7 @@ class WebRtcReceiverSession(
     private fun acceptOffer(sdp: String) {
         if (sdp.isBlank()) { onStatus("Получено пустое SDP-предложение"); return }
         val earlyCandidates = pendingCandidates.toList()
-        closePeer(clearCandidates = false)
+        closePeer(clearCandidates = true)
         pendingCandidates.addAll(earlyCandidates)
         val config = PeerConnection.RTCConfiguration(emptyList())
         peer = factory.createPeerConnection(config, object : PeerConnection.Observer {
