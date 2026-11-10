@@ -37,7 +37,7 @@ class MainActivity : Activity() {
         address = EditText(this).apply {
             hint = "Например: 192.168.1.100"
             setSingleLine(true)
-            setText("192.168.1.")
+            inputType = android.text.InputType.TYPE_CLASS_TEXT
         }
         layout.addView(address, ViewGroup.LayoutParams(-1, -2))
         val start = Button(this).apply {
