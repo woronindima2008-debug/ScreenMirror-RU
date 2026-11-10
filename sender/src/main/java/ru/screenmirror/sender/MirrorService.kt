@@ -125,7 +125,7 @@ class MirrorService : Service() {
                 when (event.action) {
                     MotionEvent.ACTION_DOWN -> { downX = event.rawX; downY = event.rawY; startX = params.x; startY = params.y; dragged = false; return true }
                     MotionEvent.ACTION_MOVE -> {
-                        params.x = startX + (downX - event.rawX).toInt()
+                        if (kotlin.math.abs(event.rawX - downX) > 8 || kotlin.math.abs(event.rawY - downY) > 8) dragged = true\n                        params.x = startX + (downX - event.rawX).toInt()
                         params.y = startY + (event.rawY - downY).toInt()
                         try { wm?.updateViewLayout(root, params) } catch (_: Exception) {}
                         return true
