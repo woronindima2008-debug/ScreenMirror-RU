@@ -7,3 +7,8 @@ android {
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
     kotlinOptions { jvmTarget = "17" }
 }
+
+dependencies {
+    // Базовая WebRTC-библиотека; пока подключена для проверки совместимости сборки.
+    implementation("io.getstream:stream-webrtc-android:1.3.10")
+}
