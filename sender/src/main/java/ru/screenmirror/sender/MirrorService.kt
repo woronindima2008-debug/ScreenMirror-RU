@@ -12,7 +12,8 @@ import android.hardware.display.VirtualDisplay
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaCodec
-import android.media.MediaCodecInfo\nimport android.media.MediaCodecList
+import android.media.MediaCodecInfo
+import android.media.MediaCodecList
 import android.media.MediaFormat
 import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
