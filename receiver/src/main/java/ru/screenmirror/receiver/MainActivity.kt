@@ -219,11 +219,10 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
                 val fillHeight = videoHeight * fillScale
                 val cropX = 1f - screenWidth.toFloat() / fillWidth
                 val cropY = 1f - screenHeight.toFloat() / fillHeight
-                // Landscape sources fill the TV without distortion. Portrait sources keep their full height
-                // so captions and controls remain readable instead of being severely cropped.
-                val sourceIsLandscape = videoWidth.toFloat() / videoHeight.toFloat() >= 1.20f
-                val cropIsSmall = maxOf(cropX, cropY) <= 0.10f
-                val scale = if (sourceIsLandscape || cropIsSmall) fillScale else fitScale
+                // Fill the TV for both landscape and portrait sources without distorting geometry.
+                // This uses a centered proportional crop when aspect ratios differ; it avoids side bars
+                // while keeping text and UI elements sharp rather than stretching them non-uniformly.
+                val scale = fillScale
                 val fittedWidth = (videoWidth * scale).toInt().coerceAtLeast(2)
                 val fittedHeight = (videoHeight * scale).toInt().coerceAtLeast(2)
                 surfaceView.holder.setFixedSize(videoWidth, videoHeight)
