@@ -42,6 +42,7 @@ class MainActivity : Activity() {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
             setPadding(pad, pad, pad, pad)
+            setBackgroundResource(R.drawable.bg_pairing)
         }
         val header = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
         header.addView(ImageView(this).apply { setImageResource(R.drawable.ic_launcher); scaleType = ImageView.ScaleType.FIT_CENTER },
@@ -50,12 +51,14 @@ class MainActivity : Activity() {
             text = "ScreenMirror RU"
             textSize = 27f
             setTypeface(null, android.graphics.Typeface.BOLD)
+            setTextColor(android.graphics.Color.WHITE)
             setPadding(dp(12), 0, 0, 0)
         }, LinearLayout.LayoutParams(0, -2, 1f))
         layout.addView(header, ViewGroup.LayoutParams(-1, -2))
         layout.addView(TextView(this).apply {
             text = "Передавайте экран телефона на телевизор по домашней сети Wi-Fi."
             textSize = 16f
+            setTextColor(android.graphics.Color.rgb(220, 228, 240))
             setPadding(0, pad, 0, pad)
         })
         address = EditText(this).apply { hint = "IP-адрес телевизора"; setSingleLine(true) }
@@ -74,7 +77,7 @@ class MainActivity : Activity() {
                     .setBeepEnabled(false).setOrientationLocked(false).initiateScan()
             }
         })
-        layout.addView(TextView(this).apply { text = "Качество трансляции"; setPadding(0, pad, 0, 4) })
+        layout.addView(TextView(this).apply { text = "Качество трансляции"; setTextColor(android.graphics.Color.WHITE); setPadding(0, pad, 0, 4) })
         quality = Spinner(this).apply {
             adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item,
                 listOf("Сбалансированное — до 720p / 30 кадров", "Высокое — до 1080p / 30 кадров", "Плавное — до 1080p / 60 кадров"))
@@ -100,6 +103,7 @@ class MainActivity : Activity() {
         status = TextView(this).apply {
             text = "1. Включите ScreenMirror RU на телевизоре.\n2. Нажмите «Найти телевизор автоматически».\n3. Нажмите «Начать трансляцию» и подтвердите системный запрос Android."
             textSize = 14f
+            setTextColor(android.graphics.Color.rgb(220, 228, 240))
             setPadding(0, pad, 0, 0)
         }
         layout.addView(status)
