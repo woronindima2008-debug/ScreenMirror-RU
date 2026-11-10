@@ -64,9 +64,9 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
         super.onResume()
         activityVisible = true
         if (streamActive) {
-            // Keep the artwork behind the fitted stream so portrait sources do not leave black bars.
-            backgroundView.visibility = View.VISIBLE
-            backgroundShade.visibility = View.VISIBLE
+            // Never place decorative artwork behind a live stream.
+            backgroundView.visibility = View.GONE
+            backgroundShade.visibility = View.GONE
             surfaceView.visibility = View.VISIBLE
             pairingPanel.visibility = View.GONE
             status.visibility = View.GONE
@@ -130,7 +130,7 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
             maxLines = 2
             ellipsize = android.text.TextUtils.TruncateAt.END
             setShadowLayer(0f, 0f, 0f, Color.TRANSPARENT)
-            setBackgroundColor(0x66050B18)
+            setBackgroundColor(Color.TRANSPARENT)
         }
         val info = TextView(this).apply {
             text = "Подключите телефон к этой сети Wi-Fi и отсканируйте QR-код"
@@ -142,7 +142,7 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
             maxLines = 2
             ellipsize = android.text.TextUtils.TruncateAt.END
             setShadowLayer(0f, 0f, 0f, Color.TRANSPARENT)
-            setBackgroundColor(0x44050B18)
+            setBackgroundColor(Color.TRANSPARENT)
         }
         val column = android.widget.LinearLayout(this).apply {
             orientation = android.widget.LinearLayout.VERTICAL
@@ -219,8 +219,11 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
                 val fillHeight = videoHeight * fillScale
                 val cropX = 1f - screenWidth.toFloat() / fillWidth
                 val cropY = 1f - screenHeight.toFloat() / fillHeight
-                // Crop only when it removes at most 10% of either dimension; otherwise preserve all content.
-                val scale = if (maxOf(cropX, cropY) <= 0.10f) fillScale else fitScale
+                // Landscape sources fill the TV without distortion. Portrait sources keep their full height
+                // so captions and controls remain readable instead of being severely cropped.
+                val sourceIsLandscape = videoWidth.toFloat() / videoHeight.toFloat() >= 1.20f
+                val cropIsSmall = maxOf(cropX, cropY) <= 0.10f
+                val scale = if (sourceIsLandscape || cropIsSmall) fillScale else fitScale
                 val fittedWidth = (videoWidth * scale).toInt().coerceAtLeast(2)
                 val fittedHeight = (videoHeight * scale).toInt().coerceAtLeast(2)
                 surfaceView.holder.setFixedSize(videoWidth, videoHeight)
@@ -273,8 +276,8 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
                 val client = server!!.accept()
                 streamActive = true
                 runOnUiThread {
-                    backgroundView.visibility = View.VISIBLE
-                    backgroundShade.visibility = View.VISIBLE
+                    backgroundView.visibility = View.GONE
+                    backgroundShade.visibility = View.GONE
                     surfaceView.visibility = View.VISIBLE
                     if (activityVisible) { pairingPanel.visibility = View.GONE; status.visibility = View.GONE }
                 }
