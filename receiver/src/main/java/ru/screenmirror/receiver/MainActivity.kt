@@ -135,6 +135,26 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) { renderSurface = holder.surface }
     override fun surfaceDestroyed(holder: SurfaceHolder) { renderSurface = null }
 
+    private fun fitSurfaceToAspect(videoWidth: Int, videoHeight: Int) {
+        val ready = java.util.concurrent.CountDownLatch(1)
+        runOnUiThread {
+            try {
+                val screenWidth = resources.displayMetrics.widthPixels
+                val screenHeight = resources.displayMetrics.heightPixels
+                val scale = minOf(
+                    screenWidth.toFloat() / videoWidth.toFloat(),
+                    screenHeight.toFloat() / videoHeight.toFloat()
+                )
+                val fittedWidth = (videoWidth * scale).toInt().coerceAtLeast(2)
+                val fittedHeight = (videoHeight * scale).toInt().coerceAtLeast(2)
+                surfaceView.layoutParams = FrameLayout.LayoutParams(fittedWidth, fittedHeight, Gravity.CENTER)
+            } finally {
+                ready.countDown()
+            }
+        }
+        ready.await(3, java.util.concurrent.TimeUnit.SECONDS)
+    }
+
     private fun awaitSurface(): Surface? {
         synchronized(surfaceLock) {
             var remaining = 20000L
@@ -160,7 +180,7 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
                                 2 -> { audioEnabled = true; runOnUiThread { status.text = "ScreenMirror RU\nЗвук включён" } }
                                 3 -> { audioEnabled = false; runOnUiThread { status.text = "ScreenMirror RU\nЗвук выключен" } }
                                 4 -> { videoPaused = false; runOnUiThread { pausedLayer.visibility = View.GONE; surfaceView.visibility = View.VISIBLE; status.text = "ScreenMirror RU\nИзображение включено" } }
-                                5 -> { videoPaused = true; runOnUiThread { surfaceView.visibility = View.INVISIBLE; pausedLayer.visibility = View.VISIBLE; status.visibility = View.GONE } }
+                                5 -> { videoPaused = true; runOnUiThread { pausedLayer.visibility = View.VISIBLE; status.visibility = View.GONE } }
                             }
                         }
                     }
@@ -192,6 +212,7 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
                 require(width in 2..3840 && height in 2..2160)
                 val sps = readPacket(input)
                 val pps = readPacket(input)
+                fitSurfaceToAspect(width, height)
                 val surface = awaitSurface() ?: throw IllegalStateException("Поверхность ТВ не готова")
                 val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, width, height).apply {
                     if (Build.VERSION.SDK_INT >= 30) setInteger(MediaFormat.KEY_LOW_LATENCY, 1)
