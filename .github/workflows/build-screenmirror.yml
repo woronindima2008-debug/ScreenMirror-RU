@@ -42,13 +42,24 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          sed -i 's/applicationId "com.futo.fcast.receiver"/applicationId "ru.screenmirror.tv"/' app/build.gradle
-          sed -i 's/buildConfigField "boolean", "IS_PLAYSTORE_VERSION", "false"/buildConfigField "boolean", "IS_PLAYSTORE_VERSION", "true"/' app/build.gradle
-          sed -i 's/<string name="app_name">FCast-приемник<\/string>/<string name="app_name">ScreenMirror RU</string>/' app/src/main/res/values-ru/strings.xml
-          sed -i 's/<string name="app_name">FCast Receiver<\/string>/<string name="app_name">ScreenMirror RU</string>/' app/src/main/res/values/strings.xml
-          sed -i 's#<string name="sender_app_download_text">.*</string>#<string name="sender_app_download_text">Установите ScreenMirror RU на телефон и подключитесь к этому телевизору</string>#' app/src/main/res/values-ru/strings.xml
-          sed -i 's#<string name="sender_app_download_url">.*</string>#<string name="sender_app_download_url"></string>#' app/src/main/res/values-ru/strings.xml
-          cp app/src/main/res/values-ru/strings.xml app/src/main/res/values/strings.xml
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('app/build.gradle')
+          s = p.read_text().replace('applicationId "com.futo.fcast.receiver"', 'applicationId "ru.screenmirror.tv"')
+          s = s.replace('buildConfigField "boolean", "IS_PLAYSTORE_VERSION", "false"', 'buildConfigField "boolean", "IS_PLAYSTORE_VERSION", "true"')
+          p.write_text(s)
+          ru = Path('app/src/main/res/values-ru/strings.xml')
+          s = ru.read_text()
+          s = s.replace('<string name="app_name">FCast-приемник</string>', '<string name="app_name">ScreenMirror RU</string>')
+          s = s.replace('<string name="sender_app_download_text">Вам нужно приложение-отправитель?\\nЗагрузите Grayjay по адресу </string>', '<string name="sender_app_download_text">Установите ScreenMirror RU на телефон и подключитесь к этому телевизору</string>')
+          s = s.replace('<string name="sender_app_download_url">https://grayjay.app</string>', '<string name="sender_app_download_url"></string>')
+          ru.write_text(s)
+          en = Path('app/src/main/res/values/strings.xml')
+          s = en.read_text().replace('<string name="app_name">FCast Receiver</string>', '<string name="app_name">ScreenMirror RU</string>')
+          s = s.replace('<string name="sender_app_download_text">Need a sender app?\\nDownload Grayjay at </string>', '<string name="sender_app_download_text">Install ScreenMirror RU on your phone to connect to this TV</string>')
+          s = s.replace('<string name="sender_app_download_url">https://grayjay.app</string>', '<string name="sender_app_download_url"></string>')
+          en.write_text(s)
+          PY
 
       - name: Build TV APK
         working-directory: fcast/receivers/android
