@@ -11,7 +11,7 @@ import java.net.Socket
 import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicBoolean
 
-class PlaybackAudioReceiver {
+class PlaybackAudioReceiver(private val expectedToken: String) {
     private val running = AtomicBoolean(true)
     @Volatile private var server: ServerSocket? = null
     @Volatile private var client: Socket? = null
@@ -47,6 +47,7 @@ class PlaybackAudioReceiver {
                 require(input.readInt() == MAGIC) { "Неверный аудиопротокол" }
                 val sampleRate = input.readInt()
                 val channels = input.readInt()
+                require(input.readUTF() == expectedToken) { "Неверный код аудиосопряжения" }
                 var configured = false
                 val info = MediaCodec.BufferInfo()
                 while (running.get() && !peer.isClosed) {
