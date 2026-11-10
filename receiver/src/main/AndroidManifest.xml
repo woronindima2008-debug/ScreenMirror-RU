@@ -1,7 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET"/>
-    <application android:theme="@android:style/Theme.Material.NoActionBar" android:label="ScreenMirror RU" android:icon="@mipmap/ic_launcher" android:usesCleartextTraffic="true">
-        <activity android:name=".MainActivity" android:configChanges="orientation|screenSize|keyboardHidden" android:screenOrientation="landscape" android:exported="true">
+    <application android:theme="@android:style/Theme.Material.NoActionBar" android:label="ScreenMirror RU" android:icon="@mipmap/ic_launcher" android:banner="@drawable/tv_banner" android:usesCleartextTraffic="true">
+        <activity android:name=".MainActivity" android:banner="@drawable/tv_banner" android:configChanges="orientation|screenSize|keyboardHidden" android:screenOrientation="landscape" android:exported="true">
             <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LEANBACK_LAUNCHER"/></intent-filter>
             <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
         </activity>

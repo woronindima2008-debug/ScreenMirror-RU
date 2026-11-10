@@ -51,9 +51,11 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
 
 
     @Volatile private var streamActive = false
+    @Volatile private var activityVisible = false
 
     override fun onStart() {
         super.onStart()
+        activityVisible = true
         if (!streamActive) {
             pairingPanel.visibility = View.VISIBLE
             status.visibility = View.VISIBLE
@@ -62,7 +64,8 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
     }
 
     override fun onStop() {
-        // Never leave the pairing/status UI visible while another TV app is foreground.
+        // Hide all app-owned UI before another TV app becomes foreground.
+        activityVisible = false
         pairingPanel.visibility = View.GONE
         status.visibility = View.GONE
         pausedLayer.visibility = View.GONE
@@ -221,7 +224,7 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
             while (alive.get()) {
                 val client = server!!.accept()
                 streamActive = true
-                runOnUiThread { pairingPanel.visibility = View.GONE; status.visibility = View.GONE }
+                runOnUiThread { if (activityVisible) { pairingPanel.visibility = View.GONE; status.visibility = View.GONE } }
                 handle(client)
             }
         } catch (e: Exception) { if (alive.get()) runOnUiThread { status.text = "Не удалось запустить приём. Перезапустите ScreenMirror RU." } }
@@ -271,9 +274,11 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
             } catch (e: Exception) {
                 streamActive = false
                 if (alive.get()) runOnUiThread {
-                    pairingPanel.visibility = View.VISIBLE
-                    status.visibility = View.VISIBLE
-                    status.text = "Соединение завершено. Ожидание телефона…"
+                    if (activityVisible) {
+                        pairingPanel.visibility = View.VISIBLE
+                        status.visibility = View.VISIBLE
+                        status.text = "Соединение завершено. Ожидание телефона…"
+                    }
                 }
             } finally {
                 streamActive = false
