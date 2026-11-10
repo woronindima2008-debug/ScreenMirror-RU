@@ -91,6 +91,7 @@ class MainActivity : Activity() {
                 status.text = message
                 val streaming = message.contains("идёт трансляция", true) || message.contains("видео подключено", true)
                 renderer.visibility = if (streaming) View.VISIBLE else View.INVISIBLE
+                renderer.setBackgroundColor(if (streaming) Color.BLACK else Color.TRANSPARENT)
                 header.visibility = if (streaming) View.GONE else View.VISIBLE
                 footer.visibility = if (streaming) View.GONE else View.VISIBLE
                 if (streaming) {
