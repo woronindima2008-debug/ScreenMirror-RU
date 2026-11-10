@@ -35,6 +35,8 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
     private lateinit var status: TextView
     private lateinit var pausedLayer: TextView
     private lateinit var qrView: ImageView
+    private lateinit var pairingPanel: View
+    private lateinit var rootLayout: FrameLayout
     private val alive = AtomicBoolean(true)
     @Volatile private var renderSurface: Surface? = null
     @Volatile private var videoPaused = false
@@ -51,7 +53,8 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
         super.onCreate(savedInstanceState)
         window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        val root = FrameLayout(this).apply { setBackgroundColor(0xFF080B12.toInt()) }
+        val root = FrameLayout(this).apply { setBackgroundColor(Color.BLACK) }
+        rootLayout = root
         surfaceView = SurfaceView(this)
         root.addView(surfaceView, FrameLayout.LayoutParams(-1, -1))
         pausedLayer = TextView(this).apply {
@@ -85,6 +88,7 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
             addView(qrView, android.widget.LinearLayout.LayoutParams(320, 320))
             addView(info, android.widget.LinearLayout.LayoutParams(-1, -2))
         }
+        pairingPanel = column
         root.addView(column, FrameLayout.LayoutParams(-1, -2, Gravity.CENTER))
         root.addView(status, FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM))
         setContentView(root)
@@ -139,14 +143,15 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
         val ready = java.util.concurrent.CountDownLatch(1)
         runOnUiThread {
             try {
-                val screenWidth = resources.displayMetrics.widthPixels
-                val screenHeight = resources.displayMetrics.heightPixels
+                val screenWidth = rootLayout.width.takeIf { it > 0 } ?: resources.displayMetrics.widthPixels
+                val screenHeight = rootLayout.height.takeIf { it > 0 } ?: resources.displayMetrics.heightPixels
                 val scale = minOf(
                     screenWidth.toFloat() / videoWidth.toFloat(),
                     screenHeight.toFloat() / videoHeight.toFloat()
                 )
                 val fittedWidth = (videoWidth * scale).toInt().coerceAtLeast(2)
                 val fittedHeight = (videoHeight * scale).toInt().coerceAtLeast(2)
+                surfaceView.holder.setFixedSize(videoWidth, videoHeight)
                 surfaceView.layoutParams = FrameLayout.LayoutParams(fittedWidth, fittedHeight, Gravity.CENTER)
             } finally {
                 ready.countDown()
@@ -194,7 +199,7 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
             server = ServerSocket(8988)
             while (alive.get()) {
                 val client = server!!.accept()
-                runOnUiThread { qrView.visibility = View.GONE; status.visibility = View.VISIBLE; status.text = "Телефон подключён. Подготовка изображения…" }
+                runOnUiThread { pairingPanel.visibility = View.GONE; status.visibility = View.GONE }
                 handle(client)
             }
         } catch (e: Exception) { if (alive.get()) runOnUiThread { status.text = "Не удалось запустить приём. Перезапустите ScreenMirror RU." } }
@@ -247,6 +252,7 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
                 try { codec?.stop() } catch (_: Exception) {}
                 try { codec?.release() } catch (_: Exception) {}
                 if (decoder === codec) decoder = null
+                if (alive.get()) runOnUiThread { pairingPanel.visibility = View.VISIBLE; status.visibility = View.VISIBLE; status.text = "ScreenMirror RU\\nОжидание подключения телефона…" }
             }
         }
     }
