@@ -54,7 +54,9 @@ class WebRtcReceiverSession(
 
     private fun acceptOffer(sdp: String) {
         if (sdp.isBlank()) { onStatus("Получено пустое SDP-предложение"); return }
-        closePeer()
+        val earlyCandidates = pendingCandidates.toList()
+        closePeer(clearCandidates = false)
+        pendingCandidates.addAll(earlyCandidates)
         val config = PeerConnection.RTCConfiguration(emptyList())
         peer = factory.createPeerConnection(config, object : PeerConnection.Observer {
             override fun onSignalingChange(state: PeerConnection.SignalingState?) {}
@@ -117,13 +119,13 @@ class WebRtcReceiverSession(
         }, offer)
     }
 
-    @Synchronized private fun closePeer() {
+    @Synchronized private fun closePeer(clearCandidates: Boolean = true) {
         remoteVideo?.removeSink(renderer)
         remoteVideo = null
         peer?.close()
         peer?.dispose()
         peer = null
-        pendingCandidates.clear()
+        if (clearCandidates) pendingCandidates.clear()
     }
 
     fun release() {
