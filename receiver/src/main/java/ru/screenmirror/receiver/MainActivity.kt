@@ -55,20 +55,32 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
 
     override fun onStart() {
         super.onStart()
-        activityVisible = true
-        if (!streamActive) {
-            pairingPanel.visibility = View.VISIBLE
-            status.visibility = View.VISIBLE
-        }
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     }
 
-    override fun onStop() {
-        // Hide all app-owned UI before another TV app becomes foreground.
+    override fun onResume() {
+        super.onResume()
+        activityVisible = true
+        if (streamActive) {
+            pairingPanel.visibility = View.GONE
+            status.visibility = View.GONE
+            pausedLayer.visibility = if (videoPaused) View.VISIBLE else View.GONE
+        } else {
+            pairingPanel.visibility = View.VISIBLE
+            status.visibility = View.VISIBLE
+            pausedLayer.visibility = View.GONE
+        }
+    }
+
+    override fun onPause() {
         activityVisible = false
         pairingPanel.visibility = View.GONE
         status.visibility = View.GONE
         pausedLayer.visibility = View.GONE
+        super.onPause()
+    }
+
+    override fun onStop() {
         window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         super.onStop()
     }
@@ -206,10 +218,10 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
                         val input = DataInputStream(s.getInputStream())
                         while (alive.get()) {
                             when (input.readInt()) {
-                                2 -> { audioEnabled = true; runOnUiThread { status.text = "ScreenMirror RU\nЗвук включён" } }
-                                3 -> { audioEnabled = false; runOnUiThread { status.text = "ScreenMirror RU\nЗвук выключен" } }
-                                4 -> { videoPaused = false; runOnUiThread { pausedLayer.visibility = View.GONE; status.visibility = View.GONE } }
-                                5 -> { videoPaused = true; runOnUiThread { pausedLayer.visibility = View.VISIBLE; status.visibility = View.GONE } }
+                                2 -> { audioEnabled = true; runOnUiThread { if (activityVisible) status.text = "ScreenMirror RU\\nЗвук включён" } }
+                                3 -> { audioEnabled = false; runOnUiThread { if (activityVisible) status.text = "ScreenMirror RU\\nЗвук выключен" } }
+                                4 -> { videoPaused = false; runOnUiThread { if (activityVisible) { pausedLayer.visibility = View.GONE; status.visibility = View.GONE } } }
+                                5 -> { videoPaused = true; runOnUiThread { if (activityVisible) { pausedLayer.visibility = View.VISIBLE; status.visibility = View.GONE } } }
                             }
                         }
                     }
@@ -227,7 +239,7 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
                 runOnUiThread { if (activityVisible) { pairingPanel.visibility = View.GONE; status.visibility = View.GONE } }
                 handle(client)
             }
-        } catch (e: Exception) { if (alive.get()) runOnUiThread { status.text = "Не удалось запустить приём. Перезапустите ScreenMirror RU." } }
+        } catch (e: Exception) { if (alive.get()) runOnUiThread { if (activityVisible) status.text = "Не удалось запустить приём. Перезапустите ScreenMirror RU." } }
         finally { try { server?.close() } catch (_: Exception) {} }
     }
 
@@ -285,7 +297,7 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
                 try { codec?.stop() } catch (_: Exception) {}
                 try { codec?.release() } catch (_: Exception) {}
                 if (decoder === codec) decoder = null
-                if (alive.get()) runOnUiThread { pairingPanel.visibility = View.VISIBLE; status.visibility = View.VISIBLE; status.text = "ScreenMirror RU\nОжидание подключения телефона…" }
+                if (alive.get()) runOnUiThread { if (activityVisible) { pairingPanel.visibility = View.VISIBLE; status.visibility = View.VISIBLE; status.text = "ScreenMirror RU\nОжидание подключения телефона…" } }
             }
         }
     }

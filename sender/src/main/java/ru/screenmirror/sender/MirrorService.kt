@@ -243,6 +243,7 @@ class MirrorService : Service() {
         if (Build.VERSION.SDK_INT < 29) return
         var record: AudioRecord? = null
         var codec: MediaCodec? = null
+        var headerSent = false
         try {
             audioSocket = connectWithRetry(ip, 8990).apply { tcpNoDelay = true }
             val mp = projection ?: return
@@ -266,46 +267,68 @@ class MirrorService : Service() {
             codec.start()
             audioEncoder = codec
             val out = DataOutputStream(audioSocket!!.getOutputStream())
-            out.writeInt(48000); out.writeInt(2); out.flush()
             record.startRecording()
             val pcm = ByteArray(min)
             val info = MediaCodec.BufferInfo()
-            var configSent = false
-            while (running && !audioSocket!!.isClosed) {
+            var inputPtsUs = 0L
+
+            while (running && audioSocket?.isClosed == false) {
                 val n = record.read(pcm, 0, pcm.size)
                 if (n > 0) {
                     val ix = codec.dequeueInputBuffer(10000)
                     if (ix >= 0) {
-                        val input = codec.getInputBuffer(ix)!!
-                        input.clear(); input.put(pcm, 0, n)
-                        codec.queueInputBuffer(ix, 0, n, System.nanoTime() / 1000, 0)
+                        val input = codec.getInputBuffer(ix)
+                        if (input != null) {
+                            input.clear()
+                            val writable = minOf(n, input.remaining())
+                            val aligned = writable - (writable % 4)
+                            if (aligned > 0) {
+                                input.put(pcm, 0, aligned)
+                                codec.queueInputBuffer(ix, 0, aligned, inputPtsUs, 0)
+                                inputPtsUs += (aligned / 4L) * 1_000_000L / 48000L
+                            } else codec.queueInputBuffer(ix, 0, 0, inputPtsUs, 0)
+                        } else codec.queueInputBuffer(ix, 0, 0, inputPtsUs, 0)
                     }
                 }
-                var oi = codec.dequeueOutputBuffer(info, 0)
-                while (oi >= 0) {
-                    val buf = codec.getOutputBuffer(oi)
-                    if (buf != null && info.size > 0) {
-                        buf.position(info.offset); buf.limit(info.offset + info.size)
-                        val packet = ByteArray(info.size); buf.get(packet)
-                        if (audioEnabled) { out.writeInt(packet.size); out.write(packet) }
+
+                var outputIndex = codec.dequeueOutputBuffer(info, 0)
+                while (true) {
+                    when {
+                        outputIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
+                            val csd = codec.outputFormat.getByteBuffer("csd-0")
+                            val configBytes = if (csd != null) ByteArray(csd.remaining()).also { csd.get(it) } else ByteArray(0)
+                            // Receiver expects the complete AAC header before length-prefixed frames.
+                            out.writeInt(48000)
+                            out.writeInt(2)
+                            out.writeInt(configBytes.size)
+                            if (configBytes.isNotEmpty()) out.write(configBytes)
+                            out.flush()
+                            headerSent = true
+                        }
+                        outputIndex >= 0 -> {
+                            val buffer = codec.getOutputBuffer(outputIndex)
+                            if (buffer != null && info.size > 0 && headerSent) {
+                                buffer.position(info.offset)
+                                buffer.limit(info.offset + info.size)
+                                val packet = ByteArray(info.size)
+                                buffer.get(packet)
+                                out.writeInt(packet.size)
+                                out.write(packet)
+                            }
+                            codec.releaseOutputBuffer(outputIndex, false)
+                        }
+                        else -> break
                     }
-                    codec.releaseOutputBuffer(oi, false)
-                    oi = codec.dequeueOutputBuffer(info, 0)
-                }
-                if (oi == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED && !configSent) {
-                    val csd = codec.outputFormat.getByteBuffer("csd-0")
-                    if (csd != null) {
-                        val configBytes = ByteArray(csd.remaining()); csd.get(configBytes)
-                        out.writeInt(configBytes.size); out.write(configBytes); out.flush()
-                    } else { out.writeInt(0); out.flush() }
-                    configSent = true
+                    outputIndex = codec.dequeueOutputBuffer(info, 0)
                 }
             }
-        } catch (e: Exception) { android.util.Log.w("ScreenMirrorRU", "Audio capture unavailable: ${e.message}") }
-        finally {
+        } catch (e: Exception) {
+            android.util.Log.w("ScreenMirrorRU", "Audio capture unavailable: ${e.message}")
+        } finally {
             try { record?.stop(); record?.release() } catch (_: Exception) {}
             try { codec?.stop(); codec?.release() } catch (_: Exception) {}
-            audioRecord = null; audioEncoder = null
+            audioRecord = null
+            audioEncoder = null
             try { audioSocket?.close() } catch (_: Exception) {}
         }
     }
@@ -313,11 +336,20 @@ class MirrorService : Service() {
     override fun onDestroy() {
         running = false
         try { videoSocket?.close(); controlSocket?.close(); audioSocket?.close() } catch (_: Exception) {}
+        main.post {
+            try { panel?.let { wm?.removeView(it) } } catch (_: Exception) {}
+            panel = null
+        }
+        try { audioRecord?.stop(); audioRecord?.release() } catch (_: Exception) {}
+        try { audioEncoder?.stop(); audioEncoder?.release() } catch (_: Exception) {}
+        try { display?.release() } catch (_: Exception) {}
+        try { projection?.stop() } catch (_: Exception) {}
+        try { encoder?.stop(); encoder?.release() } catch (_: Exception) {}
         super.onDestroy()
     }
     private fun createBestEncoder(sourceWidth: Int, sourceHeight: Int, refreshRate: Float): Pair<MediaCodec, Pair<Int, Int>> {
         val codecList = MediaCodecList(MediaCodecList.REGULAR_CODECS)
-        val bounds = listOf(3840 to 2160, 1920 to 1080, 1280 to 720)
+        val bounds = listOf(1920 to 1080, 1280 to 720)
         val fpsOptions = if (refreshRate >= 55f) listOf(60, 30) else listOf(30)
         for ((maxW, maxH) in bounds) {
             val scale = minOf(1f, maxW.toFloat() / sourceWidth, maxH.toFloat() / sourceHeight)
@@ -333,9 +365,8 @@ class MirrorService : Service() {
                 } ?: continue
                 val pixels = width.toLong() * height
                 val bitrate = when {
-                    pixels >= 3840L * 2160L -> 30_000_000
-                    pixels >= 1920L * 1080L -> 16_000_000
-                    else -> 10_000_000
+                    pixels >= 1920L * 1080L -> 8_000_000
+                    else -> 5_000_000
                 }
                 val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, width, height).apply {
                     setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)

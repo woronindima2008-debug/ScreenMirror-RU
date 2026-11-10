@@ -24,7 +24,7 @@ jobs:
         with:
           gradle-version: '8.9'
       - name: Собрать оба APK
-        run: gradle --no-daemon assembleDebug
+        run: gradle --no-daemon testDebugUnitTest assembleDebug
       - name: Опубликовать APK
         uses: actions/upload-artifact@v4
         with:
