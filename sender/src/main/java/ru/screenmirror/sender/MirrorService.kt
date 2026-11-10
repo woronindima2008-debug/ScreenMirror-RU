@@ -12,7 +12,7 @@ import android.hardware.display.VirtualDisplay
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaCodec
-import android.media.MediaCodecInfo
+import android.media.MediaCodecInfo\nimport android.media.MediaCodecList
 import android.media.MediaFormat
 import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
@@ -161,27 +161,11 @@ class MirrorService : Service() {
             (getSystemService(WINDOW_SERVICE) as WindowManager).defaultDisplay.getRealMetrics(metrics)
             val sourceW = metrics.widthPixels.coerceAtLeast(2)
             val sourceH = metrics.heightPixels.coerceAtLeast(2)
-            val scale = minOf(1f, 3840f / sourceW, 2160f / sourceH)
-            val width = ((sourceW * scale).toInt() / 2) * 2
-            val height = ((sourceH * scale).toInt() / 2) * 2
             val refresh = metricsRefreshRate()
-            val fps = if (refresh >= 55f) 60 else 30
-            val pixels = width.toLong() * height
-            val bitrate = when {
-                pixels >= 3840L * 2160L -> 30_000_000
-                pixels >= 1920L * 1080L -> 16_000_000
-                else -> 10_000_000
-            }
-            val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, width, height).apply {
-                setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)
-                setInteger(MediaFormat.KEY_BIT_RATE, bitrate)
-                setInteger(MediaFormat.KEY_FRAME_RATE, fps)
-                setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1)
-                if (Build.VERSION.SDK_INT >= 30) setInteger(MediaFormat.KEY_LATENCY, 1)
-            }
-            encoder = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC).apply {
-                configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
-            }
+            val setup = createBestEncoder(sourceW, sourceH, refresh)
+            val width = setup.second.first
+            val height = setup.second.second
+            encoder = setup.first
             val inputSurface = encoder!!.createInputSurface()
             encoder!!.start()
             projection = (getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager).getMediaProjection(resultCode, data)
@@ -316,3 +300,46 @@ class MirrorService : Service() {
         super.onDestroy()
     }
 }
+    private fun createBestEncoder(sourceWidth: Int, sourceHeight: Int, refreshRate: Float): Pair<MediaCodec, Pair<Int, Int>> {
+        val codecList = MediaCodecList(MediaCodecList.REGULAR_CODECS)
+        val bounds = listOf(3840 to 2160, 1920 to 1080, 1280 to 720)
+        val fpsOptions = if (refreshRate >= 55f) listOf(60, 30) else listOf(30)
+        for ((maxW, maxH) in bounds) {
+            val scale = minOf(1f, maxW.toFloat() / sourceWidth, maxH.toFloat() / sourceHeight)
+            val width = ((sourceWidth * scale).toInt() / 2) * 2
+            val height = ((sourceHeight * scale).toInt() / 2) * 2
+            for (fps in fpsOptions) {
+                val info = codecList.codecInfos.firstOrNull { codecInfo ->
+                    codecInfo.isEncoder && codecInfo.supportedTypes.any { it.equals(MediaFormat.MIMETYPE_VIDEO_AVC, true) } &&
+                        try {
+                            codecInfo.getCapabilitiesForType(MediaFormat.MIMETYPE_VIDEO_AVC)
+                                .videoCapabilities.areSizeAndRateSupported(width, height, fps.toDouble())
+                        } catch (_: Exception) { false }
+                } ?: continue
+                val pixels = width.toLong() * height
+                val bitrate = when {
+                    pixels >= 3840L * 2160L -> 30_000_000
+                    pixels >= 1920L * 1080L -> 16_000_000
+                    else -> 10_000_000
+                }
+                val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, width, height).apply {
+                    setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)
+                    setInteger(MediaFormat.KEY_BIT_RATE, bitrate)
+                    setInteger(MediaFormat.KEY_FRAME_RATE, fps)
+                    setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1)
+                    if (Build.VERSION.SDK_INT >= 29) setInteger(MediaFormat.KEY_MAX_B_FRAMES, 0)
+                    if (Build.VERSION.SDK_INT >= 30) setInteger(MediaFormat.KEY_LATENCY, 1)
+                }
+                val codec = try {
+                    MediaCodec.createByCodecName(info.name).apply { configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE) }
+                } catch (e: Exception) {
+                    android.util.Log.w("ScreenMirrorRU", "Encoder rejected ${width}x${height}@${fps}", e)
+                    continue
+                }
+                return codec to (width to height)
+            }
+        }
+        throw IllegalStateException("Телефон не нашёл аппаратный H.264-режим для трансляции")
+    }
+
+
