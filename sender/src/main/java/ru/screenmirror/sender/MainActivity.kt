@@ -105,7 +105,7 @@ class MainActivity : Activity() {
         val listener = object : NsdManager.DiscoveryListener {
             override fun onDiscoveryStarted(regType: String) {}
             override fun onServiceFound(service: NsdServiceInfo) {
-                if (!service.serviceType.trimEnd('.').equals(serviceType.trimEnd('.'), true) || resolving) return
+                if (!service.serviceType.contains("_screenmirror._tcp", true) || resolving) return
                 resolving = true
                 @Suppress("DEPRECATION")
                 nsdManager.resolveService(service, object : NsdManager.ResolveListener {
