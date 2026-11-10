@@ -14,6 +14,7 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.Spinner
 import android.widget.TextView
+import android.widget.Switch
 import com.google.zxing.integration.android.IntentIntegrator
 
 class MainActivity : Activity() {
@@ -21,11 +22,13 @@ class MainActivity : Activity() {
     private lateinit var tokenInput: EditText
     private lateinit var status: TextView
     private lateinit var quality: Spinner
+    private lateinit var audioSwitch: Switch
     private lateinit var nsdManager: NsdManager
     private var discoveryListener: NsdManager.DiscoveryListener? = null
     private var resolving = false
     private var selectedToken = ""
     private val projectionRequest = 4102
+    private val audioPermissionRequest = 4103
     private val serviceType = "_screenmirror._tcp."
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -69,9 +72,15 @@ class MainActivity : Activity() {
                 listOf("Сбалансированное — до 720p / 30 кадров", "Высокое — до 1080p / 30 кадров", "Плавное — до 1080p / 60 кадров"))
         }
         layout.addView(quality, ViewGroup.LayoutParams(-1, -2))
+        audioSwitch = Switch(this).apply {
+            text = "Передавать звук приложений (Android 10+)"
+            isChecked = true
+            if (android.os.Build.VERSION.SDK_INT < 29) isEnabled = false
+        }
+        layout.addView(audioSwitch, ViewGroup.LayoutParams(-1, -2))
         layout.addView(Button(this).apply {
             text = "Начать трансляцию"
-            setOnClickListener { startProjection() }
+            setOnClickListener { requestAudioOrStart() }
         })
         layout.addView(Button(this).apply {
             text = "Остановить трансляцию"
@@ -135,6 +144,13 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun requestAudioOrStart() {
+        if (audioSwitch.isChecked && android.os.Build.VERSION.SDK_INT >= 29 &&
+            checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(arrayOf(android.Manifest.permission.RECORD_AUDIO), audioPermissionRequest)
+        } else startProjection()
+    }
+
     private fun startProjection() {
         val ip = address.text.toString().trim()
         val token = tokenInput.text.toString().trim().ifBlank { selectedToken }
@@ -164,9 +180,23 @@ class MainActivity : Activity() {
             putExtra("width", width.coerceAtLeast(2))
             putExtra("height", height.coerceAtLeast(2))
             putExtra("fps", fps)
+            putExtra("audioEnabled", audioSwitch.isChecked &&
+                android.os.Build.VERSION.SDK_INT >= 29 &&
+                checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED)
         }
         if (android.os.Build.VERSION.SDK_INT >= 26) startForegroundService(service) else startService(service)
         status.text = "Запрашиваем подключение к телевизору…"
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == audioPermissionRequest) {
+            if (grantResults.firstOrNull() != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                audioSwitch.isChecked = false
+                status.text = "Разрешение на звук не выдано. Продолжим трансляцию без звука."
+            }
+            startProjection()
+        }
     }
 
     @Deprecated("Activity result API retained for compatibility")
