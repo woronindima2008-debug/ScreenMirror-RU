@@ -64,7 +64,8 @@ class MainActivity : Activity() {
         root.addView(header, LinearLayout.LayoutParams(-1, -2))
 
         renderer = SurfaceViewRenderer(this)
-        renderer.setBackgroundColor(Color.BLACK)
+        renderer.setBackgroundColor(Color.TRANSPARENT)
+        renderer.visibility = View.INVISIBLE
         root.addView(renderer, LinearLayout.LayoutParams(-1, 0, 1f))
 
         footer = LinearLayout(this).apply {
@@ -89,6 +90,7 @@ class MainActivity : Activity() {
             runOnUiThread {
                 status.text = message
                 val streaming = message.contains("идёт трансляция", true) || message.contains("видео подключено", true)
+                renderer.visibility = if (streaming) View.VISIBLE else View.INVISIBLE
                 header.visibility = if (streaming) View.GONE else View.VISIBLE
                 footer.visibility = if (streaming) View.GONE else View.VISIBLE
                 if (streaming) {
