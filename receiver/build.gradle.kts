@@ -9,6 +9,7 @@ android {
 }
 
 dependencies {
-    // Базовая WebRTC-библиотека; пока подключена для проверки совместимости сборки.
     implementation("io.getstream:stream-webrtc-android:1.3.10")
+    implementation("org.java-websocket:Java-WebSocket:1.5.7")
+    implementation("com.google.zxing:core:3.5.3")
 }
