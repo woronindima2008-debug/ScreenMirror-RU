@@ -22,6 +22,9 @@ import java.util.UUID
 
 class MainActivity : Activity() {
     private lateinit var status: TextView
+    private lateinit var root: LinearLayout
+    private lateinit var header: LinearLayout
+    private lateinit var footer: LinearLayout
     private lateinit var qr: ImageView
     private lateinit var nsd: NsdManager
     private lateinit var egl: EglBase
@@ -41,13 +44,13 @@ class MainActivity : Activity() {
         window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
         window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
-        val root = LinearLayout(this).apply {
+        root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setBackgroundColor(Color.rgb(16, 29, 48))
+            setBackgroundColor(Color.BLACK)
             setPadding(dp(28), dp(10), dp(28), dp(14))
         }
-        val header = LinearLayout(this).apply {
+        header = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             setPadding(0, 0, 0, dp(8))
@@ -64,7 +67,7 @@ class MainActivity : Activity() {
         renderer.setBackgroundColor(Color.BLACK)
         root.addView(renderer, LinearLayout.LayoutParams(-1, 0, 1f))
 
-        val footer = LinearLayout(this).apply {
+        footer = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(14), dp(10), dp(14), dp(6))
@@ -83,7 +86,15 @@ class MainActivity : Activity() {
 
         egl = EglBase.create()
         session = WebRtcReceiverSession(this, egl, renderer, { signaling.sendToPhone(it) }) { message ->
-            runOnUiThread { status.text = message }
+            runOnUiThread {
+                status.text = message
+                val streaming = message.contains("идёт трансляция", true) || message.contains("видео подключено", true)
+                header.visibility = if (streaming) View.GONE else View.VISIBLE
+                footer.visibility = if (streaming) View.GONE else View.VISIBLE
+                if (streaming) root.setPadding(0, 0, 0, 0)
+                else root.setPadding(dp(28), dp(10), dp(28), dp(14))
+                renderer.setScalingType(org.webrtc.RendererCommon.ScalingType.SCALE_ASPECT_FIT)
+            }
         }
         audioReceiver = PlaybackAudioReceiver(token).also { it.start() }
 
