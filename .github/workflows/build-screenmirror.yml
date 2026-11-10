@@ -162,6 +162,18 @@ jobs:
           p.write_text('\n'.join(out) + '\n')
           PY
 
+          # Force the React Native JS bundle into the debug APK; no Metro server is needed.
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('android/app/build.gradle')
+          s = p.read_text()
+          if 'debuggableVariants = []' not in s:
+              if 'react {' not in s:
+                  raise SystemExit('React Gradle block not found')
+              s = s.replace('react {', 'react {\n    debuggableVariants = []', 1)
+              p.write_text(s)
+          PY
+
       - name: Build phone APK
         working-directory: ${{ env.CASTLAB_ROOT }}/android
         run: gradle --no-daemon :app:assembleDebug
