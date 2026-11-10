@@ -1,0 +1,38 @@
+name: Android APK
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Получить исходники
+        uses: actions/checkout@v4
+      - name: Установить Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Установить Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Собрать оба APK
+        run: gradle --no-daemon assembleDebug
+      - name: Опубликовать APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ScreenMirror-RU-debug-apks
+          path: |
+            sender/build/outputs/apk/debug/*.apk
+            receiver/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14
