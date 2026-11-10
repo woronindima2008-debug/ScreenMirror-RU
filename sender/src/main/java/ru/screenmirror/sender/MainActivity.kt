@@ -1,12 +1,14 @@
 package ru.screenmirror.sender
 
 import android.app.Activity
+import android.graphics.Color
 import android.content.Intent
 import android.media.projection.MediaProjectionManager
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
 import android.os.Bundle
 import android.view.Gravity
+import android.view.View
 import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.Button
@@ -14,6 +16,7 @@ import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.Spinner
+import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Switch
 import com.google.zxing.integration.android.IntentIntegrator
@@ -40,10 +43,11 @@ class MainActivity : Activity() {
         val pad = dp(20)
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-            setPadding(pad, pad, pad, pad)
+            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+            setPadding(pad, dp(24), pad, pad)
             setBackgroundResource(R.drawable.bg_pairing)
         }
+        val scroll = ScrollView(this).apply { isFillViewport = true; clipToPadding = false }
         val header = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
         header.addView(ImageView(this).apply { setImageResource(R.drawable.ic_launcher); scaleType = ImageView.ScaleType.FIT_CENTER },
             LinearLayout.LayoutParams(dp(58), dp(58)))
@@ -58,19 +62,21 @@ class MainActivity : Activity() {
         layout.addView(TextView(this).apply {
             text = "Передавайте экран телефона на телевизор по домашней сети Wi-Fi."
             textSize = 16f
-            setTextColor(android.graphics.Color.rgb(220, 228, 240))
+            setTextColor(Color.WHITE)
             setPadding(0, pad, 0, pad)
         })
-        address = EditText(this).apply { hint = "IP-адрес телевизора"; setSingleLine(true) }
+        address = EditText(this).apply { hint = "IP-адрес телевизора"; setSingleLine(true); setTextColor(Color.WHITE); setHintTextColor(Color.LTGRAY) }
         layout.addView(address, ViewGroup.LayoutParams(-1, -2))
-        tokenInput = EditText(this).apply { hint = "Код сопряжения (из QR-кода)"; setSingleLine(true) }
+        tokenInput = EditText(this).apply { hint = "Код сопряжения (из QR-кода)"; setSingleLine(true); setTextColor(Color.WHITE); setHintTextColor(Color.LTGRAY) }
         layout.addView(tokenInput, ViewGroup.LayoutParams(-1, -2))
         layout.addView(Button(this).apply {
             text = "Найти телевизор автоматически"
+            setTextColor(Color.WHITE)
             setOnClickListener { discoverReceiver() }
         })
         layout.addView(Button(this).apply {
             text = "Сканировать QR-код телевизора"
+            setTextColor(Color.WHITE)
             setOnClickListener {
                 IntentIntegrator(this@MainActivity).setDesiredBarcodeFormats(IntentIntegrator.QR_CODE)
                     .setPrompt("Наведите камеру на QR-код ScreenMirror RU на телевизоре")
@@ -79,23 +85,35 @@ class MainActivity : Activity() {
         })
         layout.addView(TextView(this).apply { text = "Качество трансляции"; setTextColor(android.graphics.Color.WHITE); setPadding(0, pad, 0, 4) })
         quality = Spinner(this).apply {
-            adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_dropdown_item,
-                listOf("Сбалансированное — до 720p / 30 кадров", "Высокое — до 1080p / 30 кадров", "Плавное — до 1080p / 60 кадров"))
+            val options = listOf("Сбалансированное — до 720p / 30 кадров", "Высокое — до 1080p / 30 кадров", "Плавное — до 1080p / 60 кадров")
+            adapter = object : ArrayAdapter<String>(this@MainActivity, android.R.layout.simple_spinner_item, options) {
+                override fun getView(position: Int, convertView: View?, parent: ViewGroup): View =
+                    (super.getView(position, convertView, parent) as TextView).apply { setTextColor(Color.WHITE) }
+                override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View =
+                    (super.getDropDownView(position, convertView, parent) as TextView).apply {
+                        setTextColor(Color.WHITE)
+                        setBackgroundColor(Color.rgb(12, 22, 36))
+                        setPadding(dp(12), dp(10), dp(12), dp(10))
+                    }
+            }
         }
         layout.addView(quality, ViewGroup.LayoutParams(-1, -2))
         quality.setSelection(1)
         audioSwitch = Switch(this).apply {
             text = "Передавать звук приложений (Android 10+)"
+            setTextColor(Color.WHITE)
             isChecked = true
             if (android.os.Build.VERSION.SDK_INT < 29) isEnabled = false
         }
         layout.addView(audioSwitch, ViewGroup.LayoutParams(-1, -2))
         layout.addView(Button(this).apply {
             text = "Начать трансляцию"
+            setTextColor(Color.WHITE)
             setOnClickListener { requestAudioOrStart() }
         })
         layout.addView(Button(this).apply {
             text = "Остановить трансляцию"
+            setTextColor(Color.WHITE)
             setOnClickListener {
                 stopService(Intent(this@MainActivity, MirrorService::class.java))
                 status.text = "Трансляция остановлена."
@@ -108,7 +126,8 @@ class MainActivity : Activity() {
             setPadding(0, pad, 0, 0)
         }
         layout.addView(status)
-        setContentView(layout)
+        scroll.addView(layout, ScrollView.LayoutParams(-1, -2))
+        setContentView(scroll)
     }
 
     private fun discoverReceiver() {
