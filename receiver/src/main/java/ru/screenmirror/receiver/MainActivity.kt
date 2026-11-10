@@ -64,8 +64,9 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
         super.onResume()
         activityVisible = true
         if (streamActive) {
-            backgroundView.visibility = View.GONE
-            backgroundShade.visibility = View.GONE
+            // Keep the artwork behind the fitted stream so portrait sources do not leave black bars.
+            backgroundView.visibility = View.VISIBLE
+            backgroundShade.visibility = View.VISIBLE
             surfaceView.visibility = View.VISIBLE
             pairingPanel.visibility = View.GONE
             status.visibility = View.GONE
@@ -100,12 +101,12 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
         val root = FrameLayout(this).apply { setBackgroundColor(Color.BLACK); clipChildren = true }
         rootLayout = root
         backgroundView = ImageView(this).apply {
-            setImageResource(R.drawable.tv_banner)
+            setImageResource(R.drawable.tv_background)
             scaleType = ImageView.ScaleType.CENTER_CROP
             contentDescription = "Фон DmitryTranslation"
         }
         root.addView(backgroundView, FrameLayout.LayoutParams(-1, -1))
-        backgroundShade = View(this).apply { setBackgroundColor(0x55030A18) }
+        backgroundShade = View(this).apply { setBackgroundColor(0x33030A18) }
         root.addView(backgroundShade, FrameLayout.LayoutParams(-1, -1))
         surfaceView = SurfaceView(this).apply { visibility = View.GONE }
         root.addView(surfaceView, FrameLayout.LayoutParams(-1, -1))
@@ -121,21 +122,27 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
         qrView = ImageView(this).apply { scaleType = ImageView.ScaleType.FIT_CENTER; setPadding(14, 14, 14, 14); setBackgroundColor(Color.WHITE) }
         status = TextView(this).apply {
             text = "DmitryTranslation\nОжидание подключения телефона…"
-            textSize = 17f
+            textSize = 16f
             gravity = Gravity.CENTER
-            setTextColor(0xFFF4F7FF.toInt())
-            setPadding(20, 14, 20, 14)
+            includeFontPadding = false
+            setTextColor(0xFFEAF0FA.toInt())
+            setPadding(24, 12, 24, 12)
             maxLines = 2
-            setBackgroundColor(0x99050B18.toInt())
+            ellipsize = android.text.TextUtils.TruncateAt.END
+            setShadowLayer(0f, 0f, 0f, Color.TRANSPARENT)
+            setBackgroundColor(0x66050B18)
         }
         val info = TextView(this).apply {
             text = "Подключите телефон к этой сети Wi-Fi и отсканируйте QR-код"
-            textSize = 15f
+            textSize = 14f
             gravity = Gravity.CENTER
-            setTextColor(0xFFF4F7FF.toInt())
-            setPadding(20, 14, 20, 14)
+            includeFontPadding = false
+            setTextColor(0xFFEAF0FA.toInt())
+            setPadding(20, 10, 20, 10)
             maxLines = 2
-            setBackgroundColor(0x88050B18.toInt())
+            ellipsize = android.text.TextUtils.TruncateAt.END
+            setShadowLayer(0f, 0f, 0f, Color.TRANSPARENT)
+            setBackgroundColor(0x44050B18)
         }
         val column = android.widget.LinearLayout(this).apply {
             orientation = android.widget.LinearLayout.VERTICAL
@@ -145,7 +152,7 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
         }
         pairingPanel = column
         root.addView(column, FrameLayout.LayoutParams(-1, -2, Gravity.CENTER))
-        root.addView(status, FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM).apply { leftMargin = 24; rightMargin = 24; bottomMargin = 18 })
+        root.addView(status, FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM).apply { leftMargin = 24; rightMargin = 24; bottomMargin = 52 })
         setContentView(root)
         surfaceView.holder.addCallback(this)
         Thread({ listenVideo() }, "screenmirror-video-listener").start()
@@ -266,8 +273,8 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
                 val client = server!!.accept()
                 streamActive = true
                 runOnUiThread {
-                    backgroundView.visibility = View.GONE
-                    backgroundShade.visibility = View.GONE
+                    backgroundView.visibility = View.VISIBLE
+                    backgroundShade.visibility = View.VISIBLE
                     surfaceView.visibility = View.VISIBLE
                     if (activityVisible) { pairingPanel.visibility = View.GONE; status.visibility = View.GONE }
                 }
