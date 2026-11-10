@@ -1,108 +1,133 @@
 package ru.screenmirror.receiver
 
 import android.app.Activity
+import android.graphics.Bitmap
+import android.net.nsd.NsdManager
+import android.net.nsd.NsdServiceInfo
 import android.os.Bundle
 import android.view.Gravity
-import android.view.Surface
-import android.view.SurfaceHolder
-import android.view.SurfaceView
 import android.view.View
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
-import java.io.DataInputStream
-import java.net.ServerSocket
-import java.net.Socket
-import java.util.concurrent.atomic.AtomicBoolean
-import android.media.MediaCodec
-import android.media.MediaFormat
-import java.nio.ByteBuffer
+import com.google.zxing.BarcodeFormat
+import com.google.zxing.qrcode.QRCodeWriter
+import org.json.JSONObject
+import org.webrtc.EglBase
+import org.webrtc.SurfaceViewRenderer
+import java.net.Inet4Address
+import java.net.NetworkInterface
+import java.util.UUID
 
-class MainActivity : Activity(), SurfaceHolder.Callback {
-    private lateinit var surfaceView: SurfaceView
+class MainActivity : Activity() {
     private lateinit var status: TextView
-    private val alive = AtomicBoolean(true)
-    @Volatile private var decoder: MediaCodec? = null
+    private lateinit var qr: ImageView
+    private lateinit var nsd: NsdManager
+    private lateinit var egl: EglBase
+    private lateinit var renderer: SurfaceViewRenderer
+    private lateinit var session: WebRtcReceiverSession
+    private lateinit var signaling: TvSignalingServer
+    private lateinit var audioReceiver: PlaybackAudioReceiver
+    private var registration: NsdManager.RegistrationListener? = null
+    private val serviceType = "_screenmirror._tcp."
+    private val token = UUID.randomUUID().toString().replace("-", "").take(8)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        window.decorView.systemUiVisibility = (View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY)
+        nsd = getSystemService(NSD_SERVICE) as NsdManager
+        window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
         window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER }
-        surfaceView = SurfaceView(this)
-        root.addView(surfaceView, LinearLayout.LayoutParams(-1, 0, 1f))
-        status = TextView(this).apply { text = "ScreenMirror RU — ТВ\nОжидание подключения телефона…\nПорт: 8988"; textSize = 20f; gravity = Gravity.CENTER; setPadding(16, 12, 16, 12) }
-        root.addView(status, LinearLayout.LayoutParams(-1, -2))
+        renderer = SurfaceViewRenderer(this)
+        root.addView(renderer, LinearLayout.LayoutParams(-1, 0, 1f))
+        val footer = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(24, 12, 24, 12) }
+        qr = ImageView(this).apply { adjustViewBounds = true }
+        footer.addView(qr, LinearLayout.LayoutParams(180, 180))
+        status = TextView(this).apply { textSize = 20f; setPadding(24, 0, 0, 0); text = "Запуск ScreenMirror RU…" }
+        footer.addView(status, LinearLayout.LayoutParams(0, -2, 1f))
+        root.addView(footer, LinearLayout.LayoutParams(-1, -2))
         setContentView(root)
-        surfaceView.holder.addCallback(this)
-        Thread { listen() }.start()
-    }
 
-    override fun surfaceCreated(holder: SurfaceHolder) { }
-    override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) { }
-    override fun surfaceDestroyed(holder: SurfaceHolder) { decoder?.stop(); decoder?.release(); decoder = null }
+        egl = EglBase.create()
+        session = WebRtcReceiverSession(this, egl, renderer, { signaling.sendToPhone(it) }) { message ->
+            runOnUiThread { status.text = message }
+        }
+        audioReceiver = PlaybackAudioReceiver(token).also { it.start() }
 
-    private fun listen() {
+        val ip = findLocalIpv4()
+        if (ip == null) {
+            status.text = "Не удалось определить IP телевизора. Подключите ТВ к Wi-Fi или Ethernet."
+            return
+        }
+        showQr("$ip|8989|$token")
+        status.text = "ScreenMirror RU — ТВ\nСканируйте QR-код телефоном или используйте автоматический поиск.\nКод: $token"
+
+        signaling = TvSignalingServer(8989, token, { message ->
+            try { session.handleSignal(JSONObject(message)) } catch (_: Exception) {
+                runOnUiThread { status.text = "Получено некорректное сообщение от телефона." }
+            }
+        }, { connected ->
+            runOnUiThread { if (connected) status.text = "Телефон подключён. Согласование видеопотока…" else status.text = "Ожидание подключения телефона…\nКод: $token" }
+        })
         try {
-            ServerSocket(8988).use { server ->
-                while (alive.get()) {
-                    val client = server.accept()
-                    runOnUiThread { status.text = "Телефон подключён. Получение изображения…" }
-                    handle(client)
-                }
-            }
-        } catch (_: Exception) {
-            runOnUiThread { status.text = "Не удалось запустить приём. Перезапустите приложение." }
+            signaling.start()
+            advertise(ip)
+        } catch (e: Exception) {
+            status.text = "Ошибка запуска приёмника: ${e.localizedMessage ?: "неизвестная ошибка"}"
         }
     }
 
-    private fun handle(socket: Socket) {
-        socket.use { peer ->
-            try {
-                val input = DataInputStream(peer.getInputStream())
-                val width = input.readInt(); val height = input.readInt()
-                val sps = readPacket(input); val pps = readPacket(input)
-                val surface: Surface = surfaceView.holder.surface
-                val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, width, height).apply {
-                    setByteBuffer("csd-0", ByteBuffer.wrap(sps))
-                    setByteBuffer("csd-1", ByteBuffer.wrap(pps))
-                }
-                val codec = MediaCodec.createDecoderByType(MediaFormat.MIMETYPE_VIDEO_AVC)
-                decoder = codec
-                codec.configure(format, surface, null, 0)
-                codec.start()
-                val info = MediaCodec.BufferInfo()
-                while (alive.get() && !peer.isClosed) {
-                    val packet = readPacket(input)
-                    val inIndex = codec.dequeueInputBuffer(10_000)
-                    if (inIndex >= 0) {
-                        val buffer = codec.getInputBuffer(inIndex)!!
-                        buffer.clear(); buffer.put(packet)
-                        codec.queueInputBuffer(inIndex, 0, packet.size, System.nanoTime() / 1000, 0)
-                    }
-                    var outIndex = codec.dequeueOutputBuffer(info, 0)
-                    while (outIndex >= 0) {
-                        codec.releaseOutputBuffer(outIndex, true)
-                        outIndex = codec.dequeueOutputBuffer(info, 0)
-                    }
-                }
-            } catch (_: Exception) {
-                runOnUiThread { status.text = "Связь прервана. Ожидание нового подключения…" }
-            } finally {
-                try { decoder?.stop(); decoder?.release() } catch (_: Exception) {}
-                decoder = null
-            }
-        }
+    private fun showQr(value: String) {
+        try {
+            val matrix = QRCodeWriter().encode(value, BarcodeFormat.QR_CODE, 320, 320)
+            val bitmap = Bitmap.createBitmap(320, 320, Bitmap.Config.ARGB_8888)
+            for (x in 0 until 320) for (y in 0 until 320) bitmap.setPixel(x, y, if (matrix[x, y]) android.graphics.Color.BLACK else android.graphics.Color.WHITE)
+            qr.setImageBitmap(bitmap)
+        } catch (_: Exception) { status.text = "Не удалось создать QR-код." }
     }
 
-    private fun readPacket(input: DataInputStream): ByteArray {
-        val size = input.readInt()
-        require(size in 1..8_000_000) { "Некорректный размер видеопакета" }
-        return ByteArray(size).also { input.readFully(it) }
+    private fun advertise(ip: String) {
+        val info = NsdServiceInfo().apply {
+            serviceName = "ScreenMirror-RU-TV"
+            serviceType = this@MainActivity.serviceType
+            port = 8989
+            setAttribute("token", token)
+            setAttribute("ip", ip)
+        }
+        val listener = object : NsdManager.RegistrationListener {
+            override fun onServiceRegistered(serviceInfo: NsdServiceInfo) {}
+            override fun onRegistrationFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
+                runOnUiThread { status.text = "Приём работает по QR-коду, но автообнаружение недоступно (код $errorCode)." }
+                registration = null
+            }
+            override fun onServiceUnregistered(serviceInfo: NsdServiceInfo) { registration = null }
+            override fun onUnregistrationFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {}
+        }
+        registration = listener
+        nsd.registerService(info, NsdManager.PROTOCOL_DNS_SD, listener)
+    }
+
+    private fun findLocalIpv4(): String? {
+        return try {
+            val interfaces = NetworkInterface.getNetworkInterfaces()
+            while (interfaces.hasMoreElements()) {
+                val addresses = interfaces.nextElement().inetAddresses
+                while (addresses.hasMoreElements()) {
+                    val address = addresses.nextElement()
+                    if (address is Inet4Address && !address.isLoopbackAddress && address.isSiteLocalAddress) return address.hostAddress
+                }
+            }
+            null
+        } catch (_: Exception) { null }
     }
 
     override fun onDestroy() {
-        alive.set(false)
-        try { decoder?.stop(); decoder?.release() } catch (_: Exception) {}
+        registration?.let { try { nsd.unregisterService(it) } catch (_: Exception) {} }
+        try { signaling.stop() } catch (_: Exception) {}
+        try { audioReceiver.stop() } catch (_: Exception) {}
+        try { session.release() } catch (_: Exception) {}
+        try { egl.release() } catch (_: Exception) {}
         super.onDestroy()
     }
 }
