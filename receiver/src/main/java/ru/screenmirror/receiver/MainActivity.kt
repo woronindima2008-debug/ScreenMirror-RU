@@ -53,7 +53,7 @@ class MainActivity : Activity() {
         session = WebRtcReceiverSession(this, egl, renderer, { signaling.sendToPhone(it) }) { message ->
             runOnUiThread { status.text = message }
         }
-        audioReceiver = PlaybackAudioReceiver().also { it.start() }
+        audioReceiver = PlaybackAudioReceiver(token).also { it.start() }
 
         val ip = findLocalIpv4()
         if (ip == null) {
