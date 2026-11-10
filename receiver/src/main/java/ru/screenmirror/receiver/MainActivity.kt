@@ -49,6 +49,27 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
     private var nsdManager: NsdManager? = null
     private var registration: NsdManager.RegistrationListener? = null
 
+
+    @Volatile private var streamActive = false
+
+    override fun onStart() {
+        super.onStart()
+        if (!streamActive) {
+            pairingPanel.visibility = View.VISIBLE
+            status.visibility = View.VISIBLE
+        }
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+    }
+
+    override fun onStop() {
+        // Never leave the pairing/status UI visible while another TV app is foreground.
+        pairingPanel.visibility = View.GONE
+        status.visibility = View.GONE
+        pausedLayer.visibility = View.GONE
+        window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        super.onStop()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
@@ -199,6 +220,7 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
             server = ServerSocket(8988)
             while (alive.get()) {
                 val client = server!!.accept()
+                streamActive = true
                 runOnUiThread { pairingPanel.visibility = View.GONE; status.visibility = View.GONE }
                 handle(client)
             }
@@ -247,8 +269,14 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
                     }
                 }
             } catch (e: Exception) {
-                if (alive.get()) runOnUiThread { status.visibility = View.VISIBLE; status.text = "Соединение завершено. Ожидание телефона…" }
+                streamActive = false
+                if (alive.get()) runOnUiThread {
+                    pairingPanel.visibility = View.VISIBLE
+                    status.visibility = View.VISIBLE
+                    status.text = "Соединение завершено. Ожидание телефона…"
+                }
             } finally {
+                streamActive = false
                 try { codec?.stop() } catch (_: Exception) {}
                 try { codec?.release() } catch (_: Exception) {}
                 if (decoder === codec) decoder = null
