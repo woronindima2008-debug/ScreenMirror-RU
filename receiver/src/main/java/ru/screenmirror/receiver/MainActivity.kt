@@ -55,7 +55,7 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
         renderSurface = null
     }
 
-    private val surfaceLock = Object()
+    private val surfaceLock = java.lang.Object()
     private fun awaitSurface(): Surface? {
         synchronized(surfaceLock) {
             var remaining = 20_000L
