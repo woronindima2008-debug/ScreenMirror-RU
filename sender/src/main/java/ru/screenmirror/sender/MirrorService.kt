@@ -67,7 +67,7 @@ class MirrorService : Service() {
                     sender.start(data, width, height, fps)
                     if (audioEnabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                         sender.mediaProjection()?.let { projection ->
-                            PlaybackAudioSender(this@MirrorService, projection, ip).also { audioSender = it; it.start() }
+                            PlaybackAudioSender(this@MirrorService, projection, ip, token).also { audioSender = it; it.start() }
                         } ?: updateStatus("Видео подключено; системный звук на этом устройстве недоступен.")
                     }
                 } catch (e: Exception) {
