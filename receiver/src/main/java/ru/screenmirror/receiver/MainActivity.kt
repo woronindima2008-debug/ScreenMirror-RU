@@ -2,6 +2,7 @@ package ru.screenmirror.receiver
 
 import android.app.Activity
 import android.graphics.Bitmap
+import android.graphics.Color
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
 import android.os.Bundle
@@ -32,19 +33,50 @@ class MainActivity : Activity() {
     private val serviceType = "_screenmirror._tcp."
     private val token = UUID.randomUUID().toString().replace("-", "").take(8)
 
+    private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         nsd = getSystemService(NSD_SERVICE) as NsdManager
         window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
         window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
-        val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER }
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setBackgroundColor(Color.rgb(16, 29, 48))
+            setPadding(dp(28), dp(10), dp(28), dp(14))
+        }
+        val header = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, 0, 0, dp(8))
+        }
+        val logo = ImageView(this).apply { setImageResource(R.drawable.ic_launcher); scaleType = ImageView.ScaleType.FIT_CENTER }
+        header.addView(logo, LinearLayout.LayoutParams(dp(54), dp(54)))
+        val brand = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(14), 0, 0, 0) }
+        brand.addView(TextView(this).apply { text = "ScreenMirror RU"; textSize = 24f; setTextColor(Color.WHITE); setTypeface(null, android.graphics.Typeface.BOLD) })
+        brand.addView(TextView(this).apply { text = "Беспроводная трансляция экрана"; textSize = 14f; setTextColor(Color.rgb(183, 199, 220)) })
+        header.addView(brand, LinearLayout.LayoutParams(0, -2, 1f))
+        root.addView(header, LinearLayout.LayoutParams(-1, -2))
+
         renderer = SurfaceViewRenderer(this)
+        renderer.setBackgroundColor(Color.BLACK)
         root.addView(renderer, LinearLayout.LayoutParams(-1, 0, 1f))
-        val footer = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(24, 12, 24, 12) }
-        qr = ImageView(this).apply { adjustViewBounds = true }
-        footer.addView(qr, LinearLayout.LayoutParams(180, 180))
-        status = TextView(this).apply { textSize = 20f; setPadding(24, 0, 0, 0); text = "Запуск ScreenMirror RU…" }
+
+        val footer = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(14), dp(10), dp(14), dp(6))
+        }
+        qr = ImageView(this).apply { adjustViewBounds = true; contentDescription = "QR-код для подключения телефона" }
+        footer.addView(qr, LinearLayout.LayoutParams(dp(148), dp(148)))
+        status = TextView(this).apply {
+            textSize = 18f
+            setTextColor(Color.WHITE)
+            setPadding(dp(20), 0, 0, 0)
+            text = "Запуск приёмника…"
+        }
         footer.addView(status, LinearLayout.LayoutParams(0, -2, 1f))
         root.addView(footer, LinearLayout.LayoutParams(-1, -2))
         setContentView(root)
@@ -61,20 +93,26 @@ class MainActivity : Activity() {
             return
         }
         showQr("$ip|8989|$token")
-        status.text = "ScreenMirror RU — ТВ\nСканируйте QR-код телефоном или используйте автоматический поиск.\nКод: $token"
+        status.text = "Ожидаю телефон…\n\nОткройте ScreenMirror RU на телефоне и выберите этот телевизор.\n\nКод: $token"
 
         signaling = TvSignalingServer(8989, token, { message ->
             try { session.handleSignal(JSONObject(message)) } catch (_: Exception) {
-                runOnUiThread { status.text = "Получено некорректное сообщение от телефона." }
+                runOnUiThread { status.text = "Ошибка обработки сообщения от телефона. Перезапустите подключение." }
             }
         }, { connected ->
-            runOnUiThread { if (connected) status.text = "Телефон подключён. Согласование видеопотока…" else status.text = "Ожидание подключения телефона…\nКод: $token" }
+            runOnUiThread {
+                status.text = if (connected) {
+                    "Телефон подключён!\nСогласовываем видеопоток…"
+                } else {
+                    "Ожидаю телефон…\n\nОткройте ScreenMirror RU на телефоне и выберите этот телевизор.\n\nКод: $token"
+                }
+            }
         })
         try {
             signaling.start()
             advertise(ip)
         } catch (e: Exception) {
-            status.text = "Ошибка запуска приёмника: ${e.localizedMessage ?: "неизвестная ошибка"}"
+            status.text = "Не удалось запустить приёмник: ${e.localizedMessage ?: "ошибка сети"}"
         }
     }
 
@@ -82,7 +120,7 @@ class MainActivity : Activity() {
         try {
             val matrix = QRCodeWriter().encode(value, BarcodeFormat.QR_CODE, 320, 320)
             val bitmap = Bitmap.createBitmap(320, 320, Bitmap.Config.ARGB_8888)
-            for (x in 0 until 320) for (y in 0 until 320) bitmap.setPixel(x, y, if (matrix[x, y]) android.graphics.Color.BLACK else android.graphics.Color.WHITE)
+            for (x in 0 until 320) for (y in 0 until 320) bitmap.setPixel(x, y, if (matrix[x, y]) Color.BLACK else Color.WHITE)
             qr.setImageBitmap(bitmap)
         } catch (_: Exception) { status.text = "Не удалось создать QR-код." }
     }
@@ -98,7 +136,7 @@ class MainActivity : Activity() {
         val listener = object : NsdManager.RegistrationListener {
             override fun onServiceRegistered(serviceInfo: NsdServiceInfo) {}
             override fun onRegistrationFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
-                runOnUiThread { status.text = "Приём работает по QR-коду, но автообнаружение недоступно (код $errorCode)." }
+                runOnUiThread { status.text = "Автопоиск недоступен (код $errorCode). Подключитесь по QR-коду." }
                 registration = null
             }
             override fun onServiceUnregistered(serviceInfo: NsdServiceInfo) { registration = null }
@@ -124,10 +162,10 @@ class MainActivity : Activity() {
 
     override fun onDestroy() {
         registration?.let { try { nsd.unregisterService(it) } catch (_: Exception) {} }
-        try { signaling.stop() } catch (_: Exception) {}
-        try { audioReceiver.stop() } catch (_: Exception) {}
-        try { session.release() } catch (_: Exception) {}
-        try { egl.release() } catch (_: Exception) {}
+        if (::signaling.isInitialized) try { signaling.stop() } catch (_: Exception) {}
+        if (::audioReceiver.isInitialized) try { audioReceiver.stop() } catch (_: Exception) {}
+        if (::session.isInitialized) try { session.release() } catch (_: Exception) {}
+        if (::egl.isInitialized) try { egl.release() } catch (_: Exception) {}
         super.onDestroy()
     }
 }
