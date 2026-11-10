@@ -29,7 +29,8 @@ jobs:
           set -euxo pipefail
           curl --fail --location --retry 3 https://f-droid.org/repo/app.fedilab.castlab_16_src.tar.gz -o castlab-source.tar.gz
           echo "=== Archive entries ==="
-          tar -tzf castlab-source.tar.gz | head -100
+          tar -tzf castlab-source.tar.gz > castlab-archive-list.txt
+          sed -n '1,100p' castlab-archive-list.txt
           mkdir castlab-src
           tar -xzf castlab-source.tar.gz -C castlab-src
           echo "=== Extracted project files ==="
@@ -48,7 +49,8 @@ jobs:
           set -euxo pipefail
           git clone --depth 1 https://github.com/futo-org/fcast.git fcast
           echo "=== FCast Android receiver tree ==="
-          find fcast/receivers/android -maxdepth 4 -type f | sort | head -250
+          find fcast/receivers/android -maxdepth 4 -type f | sort > fcast-android-files.txt
+          sed -n '1,250p' fcast-android-files.txt
           echo "=== FCast Gradle files ==="
           find fcast/receivers/android -maxdepth 4 -type f \( -name '*.gradle' -o -name '*.gradle.kts' -o -name 'gradlew' -o -name 'README*' \) -print
           echo "=== FCast README ==="
