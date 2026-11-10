@@ -120,7 +120,7 @@ class MirrorService : Service() {
             PixelFormat.TRANSLUCENT
         ).apply { gravity = Gravity.TOP or Gravity.END; x = 20; y = 120 }
         head.setOnTouchListener(object : View.OnTouchListener {
-            var downX = 0f; var downY = 0f; var startX = 0; var startY = 0
+            var downX = 0f; var downY = 0f; var startX = 0; var startY = 0; var dragged = false
             override fun onTouch(v: View, event: MotionEvent): Boolean {
                 when (event.action) {
                     MotionEvent.ACTION_DOWN -> { downX = event.rawX; downY = event.rawY; startX = params.x; startY = params.y; dragged = false; return true }

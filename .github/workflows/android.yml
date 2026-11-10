@@ -1,10 +1,6 @@
 name: Android APK
 
 on:
-  push:
-    branches: [ main, feature/screenmirror-ru-unified-controls ]
-  pull_request:
-    branches: [ main ]
   workflow_dispatch:
 
 permissions:
