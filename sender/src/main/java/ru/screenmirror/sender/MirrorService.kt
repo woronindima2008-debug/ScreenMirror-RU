@@ -153,10 +153,26 @@ class MirrorService : Service() {
         catch (_: Exception) {}
     }
 
+    private fun connectWithRetry(host: String, port: Int): Socket {
+        var lastError: Exception? = null
+        repeat(4) { attempt ->
+            val socket = Socket()
+            try {
+                socket.connect(InetSocketAddress(host, port), 5000)
+                return socket
+            } catch (e: Exception) {
+                lastError = e
+                try { socket.close() } catch (_: Exception) {}
+                if (attempt < 3) Thread.sleep(500L * (attempt + 1))
+            }
+        }
+        throw lastError ?: IllegalStateException("Не удалось подключиться к телевизору")
+    }
+
     private fun stream(ip: String, resultCode: Int, data: Intent) {
         try {
-            videoSocket = Socket().apply { connect(InetSocketAddress(ip, 8988), 8000); tcpNoDelay = true; sendBufferSize = 2 * 1024 * 1024 }
-            controlSocket = Socket().apply { connect(InetSocketAddress(ip, 8989), 8000); tcpNoDelay = true }
+            videoSocket = connectWithRetry(ip, 8988).apply { tcpNoDelay = true; sendBufferSize = 2 * 1024 * 1024 }
+            controlSocket = connectWithRetry(ip, 8989).apply { tcpNoDelay = true }
             val metrics = android.util.DisplayMetrics()
             @Suppress("DEPRECATION")
             (getSystemService(WINDOW_SERVICE) as WindowManager).defaultDisplay.getRealMetrics(metrics)
@@ -229,7 +245,7 @@ class MirrorService : Service() {
         var record: AudioRecord? = null
         var codec: MediaCodec? = null
         try {
-            audioSocket = Socket().apply { connect(InetSocketAddress(ip, 8990), 8000); tcpNoDelay = true }
+            audioSocket = connectWithRetry(ip, 8990).apply { tcpNoDelay = true }
             val mp = projection ?: return
             val config = android.media.AudioPlaybackCaptureConfiguration.Builder(mp)
                 .addMatchingUsage(android.media.AudioAttributes.USAGE_MEDIA)
