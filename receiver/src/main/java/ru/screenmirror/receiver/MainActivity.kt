@@ -32,6 +32,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 class MainActivity : Activity(), SurfaceHolder.Callback {
     private lateinit var surfaceView: SurfaceView
+    private lateinit var backgroundView: ImageView
+    private lateinit var backgroundShade: View
     private lateinit var status: TextView
     private lateinit var pausedLayer: TextView
     private lateinit var qrView: ImageView
@@ -62,10 +64,16 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
         super.onResume()
         activityVisible = true
         if (streamActive) {
+            backgroundView.visibility = View.GONE
+            backgroundShade.visibility = View.GONE
+            surfaceView.visibility = View.VISIBLE
             pairingPanel.visibility = View.GONE
             status.visibility = View.GONE
             pausedLayer.visibility = if (videoPaused) View.VISIBLE else View.GONE
         } else {
+            backgroundView.visibility = View.VISIBLE
+            backgroundShade.visibility = View.VISIBLE
+            surfaceView.visibility = View.GONE
             pairingPanel.visibility = View.VISIBLE
             status.visibility = View.VISIBLE
             pausedLayer.visibility = View.GONE
@@ -89,9 +97,17 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
         super.onCreate(savedInstanceState)
         window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        val root = FrameLayout(this).apply { setBackgroundColor(Color.BLACK) }
+        val root = FrameLayout(this).apply { setBackgroundColor(Color.BLACK); clipChildren = true }
         rootLayout = root
-        surfaceView = SurfaceView(this)
+        backgroundView = ImageView(this).apply {
+            setImageResource(R.drawable.tv_banner)
+            scaleType = ImageView.ScaleType.CENTER_CROP
+            contentDescription = "Фон DmitryTranslation"
+        }
+        root.addView(backgroundView, FrameLayout.LayoutParams(-1, -1))
+        backgroundShade = View(this).apply { setBackgroundColor(0x55030A18) }
+        root.addView(backgroundShade, FrameLayout.LayoutParams(-1, -1))
+        surfaceView = SurfaceView(this).apply { visibility = View.GONE }
         root.addView(surfaceView, FrameLayout.LayoutParams(-1, -1))
         pausedLayer = TextView(this).apply {
             text = "Передача приостановлена"
@@ -102,31 +118,34 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
             visibility = View.GONE
         }
         root.addView(pausedLayer, FrameLayout.LayoutParams(-1, -1))
-        qrView = ImageView(this).apply { scaleType = ImageView.ScaleType.FIT_CENTER; setPadding(24, 24, 24, 24) }
+        qrView = ImageView(this).apply { scaleType = ImageView.ScaleType.FIT_CENTER; setPadding(14, 14, 14, 14); setBackgroundColor(Color.WHITE) }
         status = TextView(this).apply {
-            text = "ScreenMirror RU\nОжидание подключения телефона…"
+            text = "DmitryTranslation\nОжидание подключения телефона…"
             textSize = 17f
             gravity = Gravity.CENTER
-            setTextColor(Color.WHITE)
-            setPadding(16, 12, 16, 12)
-            setBackgroundColor(0xAA080B12.toInt())
+            setTextColor(0xFFF4F7FF.toInt())
+            setPadding(20, 14, 20, 14)
+            maxLines = 2
+            setBackgroundColor(0x99050B18.toInt())
         }
         val info = TextView(this).apply {
             text = "Подключите телефон к этой сети Wi-Fi и отсканируйте QR-код"
-            textSize = 16f
+            textSize = 15f
             gravity = Gravity.CENTER
-            setTextColor(Color.WHITE)
-            setBackgroundColor(0xAA080B12.toInt())
+            setTextColor(0xFFF4F7FF.toInt())
+            setPadding(20, 14, 20, 14)
+            maxLines = 2
+            setBackgroundColor(0x88050B18.toInt())
         }
         val column = android.widget.LinearLayout(this).apply {
             orientation = android.widget.LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            addView(qrView, android.widget.LinearLayout.LayoutParams(320, 320))
+            addView(qrView, android.widget.LinearLayout.LayoutParams(260, 260))
             addView(info, android.widget.LinearLayout.LayoutParams(-1, -2))
         }
         pairingPanel = column
         root.addView(column, FrameLayout.LayoutParams(-1, -2, Gravity.CENTER))
-        root.addView(status, FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM))
+        root.addView(status, FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM).apply { leftMargin = 24; rightMargin = 24; bottomMargin = 18 })
         setContentView(root)
         surfaceView.holder.addCallback(this)
         Thread({ listenVideo() }, "screenmirror-video-listener").start()
@@ -139,7 +158,7 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
         try {
             nsdManager = getSystemService(NSD_SERVICE) as NsdManager
             val service = NsdServiceInfo().apply {
-                serviceName = "ScreenMirror RU"
+                serviceName = "DmitryTranslation"
                 serviceType = "_screenmirror._tcp."
                 port = 8988
             }
@@ -159,7 +178,7 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
                 val pixels = IntArray(420 * 420)
                 for (y in 0 until 420) for (x in 0 until 420) pixels[y * 420 + x] = if (matrix[x, y]) Color.BLACK else Color.WHITE
                 qrView.setImageBitmap(Bitmap.createBitmap(pixels, 420, 420, Bitmap.Config.ARGB_8888))
-                status.text = "ScreenMirror RU\nАдрес телевизора: $ip"
+                status.text = "DmitryTranslation\nАдрес телевизора: $ip"
             } catch (e: Exception) { android.util.Log.w("ScreenMirrorRU", "QR generation failed", e) }
         }
     }
@@ -181,10 +200,20 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
             try {
                 val screenWidth = rootLayout.width.takeIf { it > 0 } ?: resources.displayMetrics.widthPixels
                 val screenHeight = rootLayout.height.takeIf { it > 0 } ?: resources.displayMetrics.heightPixels
-                val scale = minOf(
+                val fitScale = minOf(
                     screenWidth.toFloat() / videoWidth.toFloat(),
                     screenHeight.toFloat() / videoHeight.toFloat()
                 )
+                val fillScale = maxOf(
+                    screenWidth.toFloat() / videoWidth.toFloat(),
+                    screenHeight.toFloat() / videoHeight.toFloat()
+                )
+                val fillWidth = videoWidth * fillScale
+                val fillHeight = videoHeight * fillScale
+                val cropX = 1f - screenWidth.toFloat() / fillWidth
+                val cropY = 1f - screenHeight.toFloat() / fillHeight
+                // Crop only when it removes at most 10% of either dimension; otherwise preserve all content.
+                val scale = if (maxOf(cropX, cropY) <= 0.10f) fillScale else fitScale
                 val fittedWidth = (videoWidth * scale).toInt().coerceAtLeast(2)
                 val fittedHeight = (videoHeight * scale).toInt().coerceAtLeast(2)
                 surfaceView.holder.setFixedSize(videoWidth, videoHeight)
@@ -218,8 +247,8 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
                         val input = DataInputStream(s.getInputStream())
                         while (alive.get()) {
                             when (input.readInt()) {
-                                2 -> { audioEnabled = true; runOnUiThread { if (activityVisible) status.text = "ScreenMirror RU\\nЗвук включён" } }
-                                3 -> { audioEnabled = false; runOnUiThread { if (activityVisible) status.text = "ScreenMirror RU\\nЗвук выключен" } }
+                                2 -> { audioEnabled = true; runOnUiThread { if (activityVisible) status.text = "DmitryTranslation\\nЗвук включён" } }
+                                3 -> { audioEnabled = false; runOnUiThread { if (activityVisible) status.text = "DmitryTranslation\\nЗвук выключен" } }
                                 4 -> { videoPaused = false; runOnUiThread { if (activityVisible) { pausedLayer.visibility = View.GONE; status.visibility = View.GONE } } }
                                 5 -> { videoPaused = true; runOnUiThread { if (activityVisible) { pausedLayer.visibility = View.VISIBLE; status.visibility = View.GONE } } }
                             }
@@ -236,10 +265,15 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
             while (alive.get()) {
                 val client = server!!.accept()
                 streamActive = true
-                runOnUiThread { if (activityVisible) { pairingPanel.visibility = View.GONE; status.visibility = View.GONE } }
+                runOnUiThread {
+                    backgroundView.visibility = View.GONE
+                    backgroundShade.visibility = View.GONE
+                    surfaceView.visibility = View.VISIBLE
+                    if (activityVisible) { pairingPanel.visibility = View.GONE; status.visibility = View.GONE }
+                }
                 handle(client)
             }
-        } catch (e: Exception) { if (alive.get()) runOnUiThread { if (activityVisible) status.text = "Не удалось запустить приём. Перезапустите ScreenMirror RU." } }
+        } catch (e: Exception) { if (alive.get()) runOnUiThread { if (activityVisible) status.text = "Не удалось запустить приём. Перезапустите DmitryTranslation." } }
         finally { try { server?.close() } catch (_: Exception) {} }
     }
 
@@ -287,6 +321,9 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
                 streamActive = false
                 if (alive.get()) runOnUiThread {
                     if (activityVisible) {
+                        backgroundView.visibility = View.VISIBLE
+                        backgroundShade.visibility = View.VISIBLE
+                        surfaceView.visibility = View.GONE
                         pairingPanel.visibility = View.VISIBLE
                         status.visibility = View.VISIBLE
                         status.text = "Соединение завершено. Ожидание телефона…"
@@ -297,7 +334,14 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
                 try { codec?.stop() } catch (_: Exception) {}
                 try { codec?.release() } catch (_: Exception) {}
                 if (decoder === codec) decoder = null
-                if (alive.get()) runOnUiThread { if (activityVisible) { pairingPanel.visibility = View.VISIBLE; status.visibility = View.VISIBLE; status.text = "ScreenMirror RU\nОжидание подключения телефона…" } }
+                if (alive.get()) runOnUiThread { if (activityVisible) {
+                    backgroundView.visibility = View.VISIBLE
+                    backgroundShade.visibility = View.VISIBLE
+                    surfaceView.visibility = View.GONE
+                    pairingPanel.visibility = View.VISIBLE
+                    status.visibility = View.VISIBLE
+                    status.text = "DmitryTranslation\nОжидание подключения телефона…"
+                } }
             }
         }
     }

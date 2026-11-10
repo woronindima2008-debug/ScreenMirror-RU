@@ -28,7 +28,7 @@ jobs:
       - name: Опубликовать APK
         uses: actions/upload-artifact@v4
         with:
-          name: ScreenMirror-RU-debug-apks
+          name: DmitryTranslation-debug-apks
           path: |
             sender/build/outputs/apk/debug/*.apk
             receiver/build/outputs/apk/debug/*.apk
