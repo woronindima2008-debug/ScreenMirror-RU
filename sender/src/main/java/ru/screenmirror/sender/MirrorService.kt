@@ -299,7 +299,6 @@ class MirrorService : Service() {
         try { videoSocket?.close(); controlSocket?.close(); audioSocket?.close() } catch (_: Exception) {}
         super.onDestroy()
     }
-}
     private fun createBestEncoder(sourceWidth: Int, sourceHeight: Int, refreshRate: Float): Pair<MediaCodec, Pair<Int, Int>> {
         val codecList = MediaCodecList(MediaCodecList.REGULAR_CODECS)
         val bounds = listOf(3840 to 2160, 1920 to 1080, 1280 to 720)
@@ -342,4 +341,4 @@ class MirrorService : Service() {
         throw IllegalStateException("Телефон не нашёл аппаратный H.264-режим для трансляции")
     }
 
-
+}

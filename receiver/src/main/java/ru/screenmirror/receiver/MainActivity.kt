@@ -193,6 +193,7 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
                 val pps = readPacket(input)
                 val surface = awaitSurface() ?: throw IllegalStateException("Поверхность ТВ не готова")
                 val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, width, height).apply {
+                    if (Build.VERSION.SDK_INT >= 30) setInteger(MediaFormat.KEY_LOW_LATENCY, 1)
                     setByteBuffer("csd-0", ByteBuffer.wrap(sps))
                     setByteBuffer("csd-1", ByteBuffer.wrap(pps))
                 }
