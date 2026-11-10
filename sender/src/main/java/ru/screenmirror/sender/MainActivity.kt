@@ -58,7 +58,7 @@ class MainActivity : Activity() {
                         discovery?.resolveService(service, object : NsdManager.ResolveListener {
                             override fun onResolveFailed(info: NsdServiceInfo, errorCode: Int) { status.text = "Не удалось определить адрес телевизора" }
                             override fun onServiceResolved(info: NsdServiceInfo) {
-                                val host = if (android.os.Build.VERSION.SDK_INT >= 34) info.hostAddresses.firstOrNull()?.hostAddress else @Suppress("DEPRECATION") info.host?.hostAddress
+                                @Suppress("DEPRECATION")\n                                val host = info.host?.hostAddress
                                 if (!host.isNullOrBlank()) runOnUiThread { address.setText(host); status.text = "Телевизор найден: $host" }
                             }
                         })
