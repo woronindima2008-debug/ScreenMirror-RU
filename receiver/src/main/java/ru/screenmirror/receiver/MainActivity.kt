@@ -75,7 +75,7 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
         }
         val listener = object : NsdManager.RegistrationListener {
             override fun onServiceRegistered(serviceInfo: NsdServiceInfo) {
-                runOnUiThread { status.text = "ScreenMirror RU — ТВ\\nОжидание телефона…\\nТелевизор доступен для автообнаружения" }
+                runOnUiThread { status.text = "ScreenMirror RU — ТВ\nОжидание телефона…\nТелевизор доступен для автообнаружения" }
             }
             override fun onRegistrationFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
                 registrationListener = null
