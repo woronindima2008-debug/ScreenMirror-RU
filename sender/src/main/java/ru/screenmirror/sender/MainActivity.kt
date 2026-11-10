@@ -44,7 +44,7 @@ class MainActivity : Activity() {
         val pad = dp(20)
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
+            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
             minimumHeight = resources.displayMetrics.heightPixels
             setPadding(pad, dp(24), pad, pad)
             setBackgroundResource(R.drawable.bg_pairing)
@@ -67,7 +67,7 @@ class MainActivity : Activity() {
             setTextColor(Color.WHITE)
             setPadding(0, pad, 0, pad)
         })
-        address = EditText(this).apply { hint = "IP-адрес телевизора"; setSingleLine(true); setTextColor(Color.WHITE); setHintTextColor(Color.LTGRAY) }
+        address = EditText(this).apply { hint = "IP-адрес телевизора"; setSingleLine(true); setTextColor(Color.WHITE); setHintTextColor(Color.WHITE) }
         layout.addView(address, ViewGroup.LayoutParams(-1, -2))
         tokenInput = EditText(this).apply { hint = "Код сопряжения (из QR-кода)"; setSingleLine(true); setTextColor(Color.WHITE); setHintTextColor(Color.LTGRAY) }
         layout.addView(tokenInput, ViewGroup.LayoutParams(-1, -2))
