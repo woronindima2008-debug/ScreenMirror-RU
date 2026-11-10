@@ -78,7 +78,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: npm
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
@@ -129,13 +128,19 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          import re
           p = Path('android/app/build.gradle')
-          s = p.read_text()
-          s = re.sub(r"applicationId\\s+['\\\"][^'\\\"]+['\\\"]", "applicationId 'ru.screenmirror.mobile'", s)
-          s = re.sub(r"namespace\\s+['\\\"][^'\\\"]+['\\\"]", "namespace 'ru.screenmirror.mobile'", s)
-          s = re.sub(r'^\\s*signingConfig\\s+.*\\n', '', s, flags=re.M)
-          p.write_text(s)
+          lines = p.read_text().splitlines()
+          out = []
+          for line in lines:
+              stripped = line.strip()
+              if stripped.startswith('signingConfig '):
+                  continue
+              if stripped.startswith('applicationId '):
+                  line = "    applicationId 'ru.screenmirror.mobile'"
+              elif stripped.startswith('namespace '):
+                  line = "    namespace 'ru.screenmirror.mobile'"
+              out.append(line)
+          p.write_text('\n'.join(out) + '\n')
           PY
 
       - name: Build phone APK
