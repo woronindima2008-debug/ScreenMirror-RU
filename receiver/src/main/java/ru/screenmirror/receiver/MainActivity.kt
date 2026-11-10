@@ -2,6 +2,9 @@ package ru.screenmirror.receiver
 
 import android.app.Activity
 import android.graphics.Color
+import android.media.AudioAttributes
+import android.media.AudioFormat
+import android.media.AudioTrack
 import android.media.MediaCodec
 import android.media.MediaFormat
 import android.os.Bundle
@@ -29,7 +32,7 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
     @Volatile private var videoPaused = false
     @Volatile private var server: ServerSocket? = null
     @Volatile private var controlServer: ServerSocket? = null
-    @Volatile private var decoder: MediaCodec? = null
+    @Volatile private var decoder: MediaCodec? = null\n    @Volatile private var audioServer: ServerSocket? = null\n    @Volatile private var audioEnabled = true
     private val surfaceLock = java.lang.Object()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -54,7 +57,7 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
         setContentView(root)
         surfaceView.holder.addCallback(this)
         Thread({ listenVideo() },"screenmirror-video-listener").start()
-        Thread({ listenControl() },"screenmirror-control-listener").start()
+        Thread({ listenControl() },"screenmirror-control-listener").start()\n        Thread({ listenAudio() },"screenmirror-audio-listener").start()
     }
 
     override fun surfaceCreated(holder: SurfaceHolder) { renderSurface=holder.surface; synchronized(surfaceLock){surfaceLock.notifyAll()} }
@@ -144,14 +147,67 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
         }
     }
 
-    private fun readPacket(input:DataInputStream):ByteArray {
+
+    private fun listenAudio() {
+        try {
+            audioServer=ServerSocket(8990)
+            while(alive.get()) {
+                val peer=audioServer!!.accept()
+                Thread({ decodeAudio(peer) },"screenmirror-audio-client").start()
+            }
+        } catch(e:Exception) { if(alive.get()) android.util.Log.e("ScreenMirrorRU","audio listener",e) }
+    }
+
+    private fun decodeAudio(peer:Socket) {
+        var codec:MediaCodec?=null
+        var track:AudioTrack?=null
+        try {
+            peer.use { socket ->
+                socket.tcpNoDelay=true
+                val input=DataInputStream(socket.getInputStream())
+                val sampleRate=input.readInt(); val channels=input.readInt()
+                require(sampleRate in 8000..96000 && channels in 1..2)
+                val channelOut=if(channels==1) AudioFormat.CHANNEL_OUT_MONO else AudioFormat.CHANNEL_OUT_STEREO
+                val min=AudioTrack.getMinBufferSize(sampleRate,channelOut,AudioFormat.ENCODING_PCM_16BIT).coerceAtLeast(8192)
+                track=AudioTrack.Builder().setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA).setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build())
+                    .setAudioFormat(AudioFormat.Builder().setEncoding(AudioFormat.ENCODING_PCM_16BIT).setSampleRate(sampleRate).setChannelMask(channelOut).build())
+                    .setBufferSizeInBytes(min*2).setTransferMode(AudioTrack.MODE_STREAM).build()
+                val format=MediaFormat.createAudioFormat(MediaFormat.MIMETYPE_AUDIO_AAC,sampleRate,channels).apply {
+                    setInteger(MediaFormat.KEY_AAC_PROFILE,android.media.MediaCodecInfo.CodecProfileLevel.AACObjectLC)
+                }
+                codec=MediaCodec.createDecoderByType(MediaFormat.MIMETYPE_AUDIO_AAC)
+                codec.configure(format,null,null,0);codec.start();track.play()
+                val info=MediaCodec.BufferInfo()
+                while(alive.get() && !socket.isClosed) {
+                    val size=input.readInt(); require(size in 1..65536)
+                    val packet=ByteArray(size);input.readFully(packet)
+                    val ix=codec.dequeueInputBuffer(10000)
+                    if(ix>=0) {
+                        val buf=codec.getInputBuffer(ix)!!;buf.clear();buf.put(packet)
+                        codec.queueInputBuffer(ix,0,packet.size,System.nanoTime()/1000,0)
+                    }
+                    var out=codec.dequeueOutputBuffer(info,0)
+                    while(out>=0) {
+                        val pcm=codec.getOutputBuffer(out)
+                        if(pcm!=null && info.size>0 && audioEnabled) {
+                            val bytes=ByteArray(info.size);pcm.position(info.offset);pcm.limit(info.offset+info.size);pcm.get(bytes)
+                            track.write(bytes,0,bytes.size)
+                        }
+                        codec.releaseOutputBuffer(out,false);out=codec.dequeueOutputBuffer(info,0)
+                    }
+                }
+            }
+        } catch(e:Exception) { if(alive.get()) android.util.Log.w("ScreenMirrorRU","Audio stream ended: ${e.message}") }
+        finally { try{track?.pause();track?.flush();track?.release()}catch(_:Exception){};try{codec?.stop();codec?.release()}catch(_:Exception){} }
+    }
+\n    private fun readPacket(input:DataInputStream):ByteArray {
         val size=input.readInt(); require(size in 1..8_000_000) { "Некорректный размер пакета" }
         return ByteArray(size).also{input.readFully(it)}
     }
 
     override fun onDestroy() {
         alive.set(false); synchronized(surfaceLock){surfaceLock.notifyAll()}
-        try{server?.close();controlServer?.close()}catch(_:Exception){}
+        try{server?.close();controlServer?.close();audioServer?.close()}catch(_:Exception){}
         try{decoder?.stop();decoder?.release()}catch(_:Exception){}
         decoder=null; super.onDestroy()
     }
