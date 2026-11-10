@@ -123,7 +123,7 @@ class MirrorService : Service() {
             var downX = 0f; var downY = 0f; var startX = 0; var startY = 0
             override fun onTouch(v: View, event: MotionEvent): Boolean {
                 when (event.action) {
-                    MotionEvent.ACTION_DOWN -> { downX = event.rawX; downY = event.rawY; startX = params.x; startY = params.y; return true }
+                    MotionEvent.ACTION_DOWN -> { downX = event.rawX; downY = event.rawY; startX = params.x; startY = params.y; dragged = false; return true }
                     MotionEvent.ACTION_MOVE -> {
                         params.x = startX + (downX - event.rawX).toInt()
                         params.y = startY + (event.rawY - downY).toInt()

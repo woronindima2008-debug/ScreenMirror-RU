@@ -1,6 +1,6 @@
 package ru.screenmirror.sender
 
-import android.app.Activity
+import android.Manifest\nimport android.content.pm.PackageManager\nimport android.app.Activity
 import android.content.Intent
 import android.media.projection.MediaProjectionManager
 import android.net.nsd.NsdManager
@@ -20,7 +20,7 @@ class MainActivity : Activity() {
     private lateinit var address: EditText
     private lateinit var status: TextView
     private val projectionRequest = 4102
-    private val overlayRequest = 4103
+    private val overlayRequest = 4103\n    private val audioPermissionRequest = 4104
     private var discovery: NsdManager? = null
     private var discoveryListener: NsdManager.DiscoveryListener? = null
 
@@ -87,7 +87,7 @@ class MainActivity : Activity() {
             return
         }
         if (requestCode == overlayRequest) {
-            if (Settings.canDrawOverlays(this)) requestCapture() else status.text = "Для плавающей панели разрешите показ поверх других приложений."
+            if (Settings.canDrawOverlays(this)) continueToCapture() else status.text = "Для плавающей панели разрешите показ поверх других приложений."
         } else if (requestCode == projectionRequest && resultCode == RESULT_OK && data != null) {
             val service = Intent(this, MirrorService::class.java).apply {
                 putExtra("ip", address.text.toString().trim())
@@ -99,7 +99,7 @@ class MainActivity : Activity() {
         } else if (requestCode == projectionRequest) status.text = "Разрешение на трансляцию не выдано."
     }
 
-    private fun requestCapture() {
+    private fun continueToCapture() {\n        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {\n            requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), audioPermissionRequest)\n        } else requestCapture()\n    }\n\n    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {\n        super.onRequestPermissionsResult(requestCode, permissions, grantResults)\n        if (requestCode == audioPermissionRequest) {\n            if (grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) requestCapture()\n            else { status.text = "Доступ к микрофону не выдан: трансляция будет без звука."; requestCapture() }\n        }\n    }\n\n    private fun requestCapture() {
         val manager = getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
         startActivityForResult(manager.createScreenCaptureIntent(), projectionRequest)
     }
