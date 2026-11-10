@@ -44,8 +44,7 @@ jobs:
           sed -i 's/<string name="app_name">FCast Receiver<\/string>/<string name="app_name">ScreenMirror RU</string>/' app/src/main/res/values/strings.xml
           sed -i 's#<string name="sender_app_download_text">.*</string>#<string name="sender_app_download_text">Установите ScreenMirror RU на телефон и подключитесь к этому телевизору</string>#' app/src/main/res/values-ru/strings.xml
           sed -i 's#<string name="sender_app_download_url">.*</string>#<string name="sender_app_download_url"></string>#' app/src/main/res/values-ru/strings.xml
-          sed -i 's#<string name="sender_app_download_text">.*</string>#<string name="sender_app_download_text">Install ScreenMirror RU on your phone to connect to this TV</string>#' app/src/main/res/values/strings.xml
-          sed -i 's#<string name="sender_app_download_url">.*</string>#<string name="sender_app_download_url"></string>#' app/src/main/res/values/strings.xml
+          cp app/src/main/res/values-ru/strings.xml app/src/main/res/values/strings.xml
 
       - name: Build TV APK
         working-directory: fcast/receivers/android
@@ -128,9 +127,16 @@ jobs:
       - name: Set Android application label and package
         working-directory: ${{ env.CASTLAB_ROOT }}
         run: |
-          sed -i 's/applicationId .*/applicationId "ru.screenmirror.mobile"/' android/app/build.gradle
-          sed -i 's/namespace .*/namespace "ru.screenmirror.mobile"/' android/app/build.gradle
-          sed -i '/signingConfig /d' android/app/build.gradle
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p = Path('android/app/build.gradle')
+          s = p.read_text()
+          s = re.sub(r"applicationId\\s+['\\\"][^'\\\"]+['\\\"]", "applicationId 'ru.screenmirror.mobile'", s)
+          s = re.sub(r"namespace\\s+['\\\"][^'\\\"]+['\\\"]", "namespace 'ru.screenmirror.mobile'", s)
+          s = re.sub(r'^\\s*signingConfig\\s+.*\\n', '', s, flags=re.M)
+          p.write_text(s)
+          PY
 
       - name: Build phone APK
         working-directory: ${{ env.CASTLAB_ROOT }}/android
