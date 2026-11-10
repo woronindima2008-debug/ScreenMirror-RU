@@ -27,6 +27,7 @@ class MainActivity : Activity() {
     private lateinit var renderer: SurfaceViewRenderer
     private lateinit var session: WebRtcReceiverSession
     private lateinit var signaling: TvSignalingServer
+    private lateinit var audioReceiver: PlaybackAudioReceiver
     private var registration: NsdManager.RegistrationListener? = null
     private val serviceType = "_screenmirror._tcp."
     private val token = UUID.randomUUID().toString().replace("-", "").take(8)
@@ -52,6 +53,7 @@ class MainActivity : Activity() {
         session = WebRtcReceiverSession(this, egl, renderer, { signaling.sendToPhone(it) }) { message ->
             runOnUiThread { status.text = message }
         }
+        audioReceiver = PlaybackAudioReceiver().also { it.start() }
 
         val ip = findLocalIpv4()
         if (ip == null) {
@@ -123,6 +125,7 @@ class MainActivity : Activity() {
     override fun onDestroy() {
         registration?.let { try { nsd.unregisterService(it) } catch (_: Exception) {} }
         try { signaling.stop() } catch (_: Exception) {}
+        try { audioReceiver.stop() } catch (_: Exception) {}
         try { session.release() } catch (_: Exception) {}
         try { egl.release() } catch (_: Exception) {}
         super.onDestroy()
