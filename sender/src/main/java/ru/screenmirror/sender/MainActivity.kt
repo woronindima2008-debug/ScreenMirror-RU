@@ -83,6 +83,7 @@ class MainActivity : Activity() {
                 listOf("Сбалансированное — до 720p / 30 кадров", "Высокое — до 1080p / 30 кадров", "Плавное — до 1080p / 60 кадров"))
         }
         layout.addView(quality, ViewGroup.LayoutParams(-1, -2))
+        quality.setSelection(1)
         audioSwitch = Switch(this).apply {
             text = "Передавать звук приложений (Android 10+)"
             isChecked = true
