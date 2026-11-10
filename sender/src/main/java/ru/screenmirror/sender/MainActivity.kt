@@ -43,11 +43,12 @@ class MainActivity : Activity() {
         val pad = dp(20)
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+            gravity = Gravity.CENTER
+            minimumHeight = resources.displayMetrics.heightPixels
             setPadding(pad, dp(24), pad, pad)
             setBackgroundResource(R.drawable.bg_pairing)
         }
-        val scroll = ScrollView(this).apply { isFillViewport = true; clipToPadding = false }
+        val scroll = ScrollView(this).apply { isFillViewport = true; clipToPadding = false; setBackgroundResource(R.drawable.bg_pairing) }
         val header = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
         header.addView(ImageView(this).apply { setImageResource(R.drawable.ic_launcher); scaleType = ImageView.ScaleType.FIT_CENTER },
             LinearLayout.LayoutParams(dp(58), dp(58)))
@@ -122,7 +123,7 @@ class MainActivity : Activity() {
         status = TextView(this).apply {
             text = "1. Включите ScreenMirror RU на телевизоре.\n2. Нажмите «Найти телевизор автоматически».\n3. Нажмите «Начать трансляцию» и подтвердите системный запрос Android."
             textSize = 14f
-            setTextColor(android.graphics.Color.rgb(220, 228, 240))
+            setTextColor(Color.WHITE)
             setPadding(0, pad, 0, 0)
         }
         layout.addView(status)
