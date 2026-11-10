@@ -34,7 +34,7 @@ jobs:
           mkdir castlab-src diagnostics
           tar -xzf castlab-source.tar.gz -C castlab-src
           echo "=== Project metadata files (excluding node_modules) ==="
-          find castlab-src -path '*/node_modules' -prune -o -maxdepth 6 -type f \\( -name app.json -o -name app.config.js -o -name app.config.ts -o -name package.json -o -name settings.gradle -o -name settings.gradle.kts -o -name build.gradle -o -name build.gradle.kts -o -name AndroidManifest.xml \\) -print | sed -n '1,160p'
+          find castlab-src -path '*/node_modules' -prune -o -maxdepth 6 -type f \( -name app.json -o -name app.config.js -o -name app.config.ts -o -name package.json -o -name settings.gradle -o -name settings.gradle.kts -o -name build.gradle -o -name build.gradle.kts -o -name AndroidManifest.xml \) -print | sed -n '1,160p'
           root="$(find castlab-src -path '*/node_modules' -prune -o -type f -name package.json -print -quit | xargs -r dirname)"
           test -n "$root"
           echo "CASTLAB_ROOT=$root" >> "$GITHUB_ENV"
@@ -42,15 +42,15 @@ jobs:
           echo "=== package.json ==="
           cat "$root/package.json"
           echo "=== app config ==="
-          find "$root" -maxdepth 2 -type f \\( -name app.json -o -name app.config.js -o -name app.config.ts \\) -print -exec sed -n '1,220p' {} \\;
+          find "$root" -maxdepth 2 -type f \( -name app.json -o -name app.config.js -o -name app.config.ts \) -print -exec sed -n '1,220p' {} \;
           echo "=== Android Gradle files ==="
-          find "$root/android" -maxdepth 4 -type f \\( -name '*.gradle' -o -name '*.gradle.kts' -o -name 'gradlew' \\) -print 2>/dev/null || true
+          find "$root/android" -maxdepth 4 -type f \( -name '*.gradle' -o -name '*.gradle.kts' -o -name 'gradlew' \) -print 2>/dev/null || true
           mkdir -p diagnostics/castlab
           cp "$root/package.json" diagnostics/castlab/
           for f in app.json app.config.js app.config.ts; do
             if [ -f "$root/$f" ]; then cp "$root/$f" diagnostics/castlab/; fi
           done
-          find "$root/android" -maxdepth 3 -type f \\( -name '*.gradle' -o -name '*.gradle.kts' -o -name 'gradlew' -o -name 'gradle-wrapper.properties' -o -name 'AndroidManifest.xml' \\) -print 2>/dev/null | sed -n '1,120p' > diagnostics/castlab/android-files.txt || true
+          find "$root/android" -maxdepth 3 -type f \( -name '*.gradle' -o -name '*.gradle.kts' -o -name 'gradlew' -o -name 'gradle-wrapper.properties' -o -name 'AndroidManifest.xml' \) -print 2>/dev/null | sed -n '1,120p' > diagnostics/castlab/android-files.txt || true
       - name: Fetch and inspect FCast Android receiver
         if: always()
         run: |
@@ -60,7 +60,7 @@ jobs:
           find fcast/receivers/android -maxdepth 5 -type f | sort > fcast-android-files.txt
           sed -n '1,220p' fcast-android-files.txt
           echo "=== FCast Gradle files ==="
-          find fcast/receivers/android -maxdepth 5 -type f \\( -name '*.gradle' -o -name '*.gradle.kts' -o -name 'gradlew' -o -name 'README*' \\) -print
+          find fcast/receivers/android -maxdepth 5 -type f \( -name '*.gradle' -o -name '*.gradle.kts' -o -name 'gradlew' -o -name 'README*' \) -print
           echo "=== FCast README ==="
           sed -n '1,240p' fcast/receivers/android/README.md
           mkdir -p diagnostics/fcast
