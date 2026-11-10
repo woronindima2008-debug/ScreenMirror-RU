@@ -1,6 +1,8 @@
 package ru.screenmirror.receiver
 
 import android.app.Activity
+import android.net.nsd.NsdManager
+import android.net.nsd.NsdServiceInfo
 import android.os.Bundle
 import android.view.Gravity
 import android.view.Surface
@@ -20,17 +22,22 @@ import java.nio.ByteBuffer
 class MainActivity : Activity(), SurfaceHolder.Callback {
     private lateinit var surfaceView: SurfaceView
     private lateinit var status: TextView
+    private lateinit var nsdManager: NsdManager
     private val alive = AtomicBoolean(true)
     @Volatile private var decoder: MediaCodec? = null
+    @Volatile private var serverSocket: ServerSocket? = null
+    @Volatile private var registeredService: NsdServiceInfo? = null
+    private val serviceType = "_screenmirror._tcp."
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        nsdManager = getSystemService(NSD_SERVICE) as NsdManager
         window.decorView.systemUiVisibility = (View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY)
         window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER }
         surfaceView = SurfaceView(this)
         root.addView(surfaceView, LinearLayout.LayoutParams(-1, 0, 1f))
-        status = TextView(this).apply { text = "ScreenMirror RU — ТВ\nОжидание подключения телефона…\nПорт: 8988"; textSize = 20f; gravity = Gravity.CENTER; setPadding(16, 12, 16, 12) }
+        status = TextView(this).apply { text = "ScreenMirror RU — ТВ\nОжидание подключения телефона…\nАвтообнаружение включено"; textSize = 20f; gravity = Gravity.CENTER; setPadding(16, 12, 16, 12) }
         root.addView(status, LinearLayout.LayoutParams(-1, -2))
         setContentView(root)
         surfaceView.holder.addCallback(this)
@@ -44,6 +51,8 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
     private fun listen() {
         try {
             ServerSocket(8988).use { server ->
+                serverSocket = server
+                advertiseReceiver()
                 while (alive.get()) {
                     val client = server.accept()
                     runOnUiThread { status.text = "Телефон подключён. Получение изображения…" }
@@ -51,8 +60,38 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
                 }
             }
         } catch (_: Exception) {
-            runOnUiThread { status.text = "Не удалось запустить приём. Перезапустите приложение." }
+            if (alive.get()) runOnUiThread { status.text = "Не удалось запустить приём. Перезапустите приложение." }
+        } finally {
+            serverSocket = null
+            unregisterReceiver()
         }
+    }
+
+    private fun advertiseReceiver() {
+        val info = NsdServiceInfo().apply {
+            serviceName = "ScreenMirror-RU"
+            serviceType = this@MainActivity.serviceType
+            port = 8988
+        }
+        nsdManager.registerService(info, NsdManager.PROTOCOL_DNS_SD, object : NsdManager.RegistrationListener {
+            override fun onServiceRegistered(serviceInfo: NsdServiceInfo) {
+                registeredService = serviceInfo
+                runOnUiThread { status.text = "ScreenMirror RU — ТВ\nОжидание телефона…\nТелевизор доступен для автообнаружения" }
+            }
+            override fun onRegistrationFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
+                runOnUiThread { status.text = "Приём включён, но автообнаружение недоступно (код $errorCode). Можно подключиться по IP." }
+            }
+            override fun onServiceUnregistered(serviceInfo: NsdServiceInfo) { registeredService = null }
+            override fun onUnregistrationFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {}
+        })
+    }
+
+    private fun unregisterReceiver() {
+        val info = registeredService ?: return
+        registeredService = null
+        try {
+            // The registration listener is retained by NSD; unregistering is performed in onDestroy.
+        } catch (_: Exception) {}
     }
 
     private fun handle(socket: Socket) {
@@ -62,6 +101,7 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
                 val width = input.readInt(); val height = input.readInt()
                 val sps = readPacket(input); val pps = readPacket(input)
                 val surface: Surface = surfaceView.holder.surface
+                check(surface.isValid) { "Экран приёма ещё не готов" }
                 val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, width, height).apply {
                     setByteBuffer("csd-0", ByteBuffer.wrap(sps))
                     setByteBuffer("csd-1", ByteBuffer.wrap(pps))
@@ -76,7 +116,9 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
                     val inIndex = codec.dequeueInputBuffer(10_000)
                     if (inIndex >= 0) {
                         val buffer = codec.getInputBuffer(inIndex)!!
-                        buffer.clear(); buffer.put(packet)
+                        buffer.clear()
+                        require(packet.size <= buffer.remaining()) { "Кадр превышает размер буфера декодера" }
+                        buffer.put(packet)
                         codec.queueInputBuffer(inIndex, 0, packet.size, System.nanoTime() / 1000, 0)
                     }
                     var outIndex = codec.dequeueOutputBuffer(info, 0)
@@ -102,6 +144,8 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
 
     override fun onDestroy() {
         alive.set(false)
+        try { serverSocket?.close() } catch (_: Exception) {}
+        unregisterReceiver()
         try { decoder?.stop(); decoder?.release() } catch (_: Exception) {}
         super.onDestroy()
     }
