@@ -104,6 +104,8 @@ class WebRtcSenderSession(
         }, MediaConstraints())
     }
 
+    fun mediaProjection(): android.media.projection.MediaProjection? = capturer?.getMediaProjection()
+
     @Synchronized fun handleSignal(json: JSONObject) {
         when (json.optString("kind")) {
             "answer" -> {
