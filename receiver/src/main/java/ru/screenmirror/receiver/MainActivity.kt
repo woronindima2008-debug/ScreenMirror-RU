@@ -228,7 +228,7 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
                 decoder = codec
                 codec.configure(format, surface, null, 0)
                 codec.start()
-                runOnUiThread { status.visibility = View.VISIBLE; status.text = "ScreenMirror RU\nИдёт трансляция" }
+                runOnUiThread { status.visibility = View.GONE }
                 val info = MediaCodec.BufferInfo()
                 while (alive.get() && !socket.isClosed) {
                     val packet = readPacket(input)
