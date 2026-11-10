@@ -24,51 +24,43 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Download and unpack CastLab 1.7.0 source
+      - name: Download and inspect CastLab 1.7.0 source archive
         run: |
           set -euxo pipefail
-          curl --fail --location --retry 3 https://f-droid.org/repo/app.fedilab.castlab_16_src.tar.gz -o castlab-outer.tar.gz
-          mkdir castlab
-          tar -xzf castlab-outer.tar.gz -C castlab
-          inner="$(find castlab -type f -name '*.tar.gz' -print -quit)"
-          test -n "$inner"
+          curl --fail --location --retry 3 https://f-droid.org/repo/app.fedilab.castlab_16_src.tar.gz -o castlab-source.tar.gz
+          echo "=== Archive entries ==="
+          tar -tzf castlab-source.tar.gz | head -100
           mkdir castlab-src
-          tar -xzf "$inner" -C castlab-src
-          root="$(find castlab-src -mindepth 1 -maxdepth 2 -type f -name app.json -printf '%h\n' | head -1)"
+          tar -xzf castlab-source.tar.gz -C castlab-src
+          echo "=== Extracted project files ==="
+          find castlab-src -maxdepth 5 -type f \( -name app.json -o -name package.json -o -name settings.gradle -o -name settings.gradle.kts -o -name build.gradle -o -name build.gradle.kts -o -name AndroidManifest.xml \) -print
+          root="$(find castlab-src -type f -name package.json -printf '%h\n' | head -1)"
           test -n "$root"
           echo "CASTLAB_ROOT=$root" >> "$GITHUB_ENV"
-          echo "=== app.json ==="
-          cat "$root/app.json"
-          echo "=== package identity and scripts ==="
-          node -e "const p=require('./$root/package.json'); console.log(JSON.stringify({name:p.name,scripts:p.scripts,expo:p.expo},null,2))"
-          echo "=== android project files ==="
-          find "$root/android" -maxdepth 3 -type f \( -name '*.gradle' -o -name '*.gradle.kts' -o -name 'AndroidManifest.xml' \) -print
-      - name: Build CastLab Android release
-        working-directory: ${{ env.CASTLAB_ROOT }}
-        run: |
-          set -euxo pipefail
-          npm install --legacy-peer-deps
-          cd android
-          chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon
-      - name: Fetch and build FCast Android receiver
+          echo "=== package.json ==="
+          cat "$root/package.json"
+          echo "=== app config ==="
+          find "$root" -maxdepth 2 -type f \( -name app.json -o -name app.config.js -o -name app.config.ts \) -print -exec sed -n '1,220p' {} \;
+          echo "=== Android project root ==="
+          find "$root" -maxdepth 3 -type f \( -name '*.gradle' -o -name '*.gradle.kts' -o -name 'gradlew' \) -print
+      - name: Fetch and inspect FCast Android receiver
         run: |
           set -euxo pipefail
           git clone --depth 1 https://github.com/futo-org/fcast.git fcast
-          cd fcast/receivers/android
-          echo "=== Android build configuration ==="
-          sed -n '1,240p' app/build.gradle
-          sed -n '1,160p' README.md
-          chmod +x gradlew
-          ./gradlew tasks --all --no-daemon
-          ./gradlew assembleDebug --no-daemon
-      - name: Upload upstream APK build probes
+          echo "=== FCast Android receiver tree ==="
+          find fcast/receivers/android -maxdepth 4 -type f | sort | head -250
+          echo "=== FCast Gradle files ==="
+          find fcast/receivers/android -maxdepth 4 -type f \( -name '*.gradle' -o -name '*.gradle.kts' -o -name 'gradlew' -o -name 'README*' \) -print
+          echo "=== FCast README ==="
+          sed -n '1,240p' fcast/receivers/android/README.md
+      - name: Upload upstream source diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: upstream-apk-build-probes
+          name: upstream-source-diagnostics
           path: |
-            castlab-src/**/android/app/build/outputs/apk/**/*.apk
-            fcast/receivers/android/app/build/outputs/apk/**/*.apk
+            castlab-source.tar.gz
+            castlab-src/
+            fcast/receivers/android/
           if-no-files-found: warn
           retention-days: 7
