@@ -24,6 +24,7 @@ class MirrorService : Service() {
     private val http = OkHttpClient.Builder().readTimeout(0, TimeUnit.MILLISECONDS).build()
     @Volatile private var webSocket: WebSocket? = null
     @Volatile private var session: WebRtcSenderSession? = null
+    @Volatile private var audioSender: PlaybackAudioSender? = null
     @Volatile private var stopped = false
     private var egl: EglBase? = null
 
@@ -43,7 +44,8 @@ class MirrorService : Service() {
         val width = intent.getIntExtra("width", 1280)
         val height = intent.getIntExtra("height", 720)
         val fps = intent.getIntExtra("fps", 30)
-        connect(ip, token, data, width, height, fps)
+        val audioEnabled = intent.getBooleanExtra("audioEnabled", true)
+        connect(ip, token, data, width, height, fps, audioEnabled)
         return START_NOT_STICKY
     }
 
@@ -52,7 +54,7 @@ class MirrorService : Service() {
         if (Build.VERSION.SDK_INT >= 33) intent.getParcelableExtra("projectionData", Intent::class.java)
         else intent.getParcelableExtra("projectionData")
 
-    private fun connect(ip: String, token: String, data: Intent, width: Int, height: Int, fps: Int) {
+    private fun connect(ip: String, token: String, data: Intent, width: Int, height: Int, fps: Int, audioEnabled: Boolean) {
         val request = Request.Builder().url("ws://$ip:8989/?token=$token").build()
         webSocket = http.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(ws: WebSocket, response: Response) {
@@ -63,6 +65,11 @@ class MirrorService : Service() {
                     val sender = WebRtcSenderSession(this@MirrorService, base, { msg -> webSocket?.send(msg) }) { updateStatus(it) }
                     session = sender
                     sender.start(data, width, height, fps)
+                    if (audioEnabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        sender.mediaProjection()?.let { projection ->
+                            PlaybackAudioSender(this@MirrorService, projection, ip).also { audioSender = it; it.start() }
+                        } ?: updateStatus("Видео подключено; системный звук на этом устройстве недоступен.")
+                    }
                 } catch (e: Exception) {
                     updateStatus("Ошибка запуска трансляции: ${e.localizedMessage ?: "неизвестная ошибка"}")
                     stopSession()
@@ -109,6 +116,8 @@ class MirrorService : Service() {
         stopped = true
         try { webSocket?.close(1000, "Трансляция завершена") } catch (_: Exception) {}
         webSocket = null
+        try { audioSender?.stop() } catch (_: Exception) {}
+        audioSender = null
         try { session?.release() } catch (_: Exception) {}
         session = null
         try { egl?.release() } catch (_: Exception) {}
