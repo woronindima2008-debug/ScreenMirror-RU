@@ -69,7 +69,7 @@ class MainActivity : Activity() {
         })
         address = EditText(this).apply { hint = "IP-адрес телевизора"; setSingleLine(true); setTextColor(Color.WHITE); setHintTextColor(Color.WHITE) }
         layout.addView(address, ViewGroup.LayoutParams(-1, -2))
-        tokenInput = EditText(this).apply { hint = "Код сопряжения (из QR-кода)"; setSingleLine(true); setTextColor(Color.WHITE); setHintTextColor(Color.LTGRAY) }
+        tokenInput = EditText(this).apply { hint = "Код сопряжения (из QR-кода)"; setSingleLine(true); setTextColor(Color.WHITE); setHintTextColor(Color.WHITE) }
         layout.addView(tokenInput, ViewGroup.LayoutParams(-1, -2))
         layout.addView(Button(this).apply {
             text = "Найти телевизор автоматически"
