@@ -52,14 +52,14 @@ class MainActivity : Activity() {
             gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
             minimumHeight = resources.displayMetrics.heightPixels
             setPadding(pad, dp(24), pad, pad)
-            setBackgroundResource(R.drawable.bg_pairing)
+            setBackgroundResource(R.drawable.cosmic_background)
         }
-        val scroll = ScrollView(this).apply { isFillViewport = true; clipToPadding = false; setBackgroundResource(R.drawable.bg_pairing) }
+        val scroll = ScrollView(this).apply { isFillViewport = true; clipToPadding = false; setBackgroundColor(Color.TRANSPARENT) }
         val header = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        header.addView(ImageView(this).apply { setImageResource(R.drawable.ic_launcher); scaleType = ImageView.ScaleType.FIT_CENTER },
+        header.addView(ImageView(this).apply { setImageResource(R.mipmap.ic_launcher); scaleType = ImageView.ScaleType.FIT_CENTER },
             LinearLayout.LayoutParams(dp(58), dp(58)))
         header.addView(TextView(this).apply {
-            text = "ScreenMirror RU"
+            text = "DmitryTranslation"
             textSize = 27f
             setTypeface(null, android.graphics.Typeface.BOLD)
             setTextColor(android.graphics.Color.WHITE)
@@ -123,7 +123,7 @@ class MainActivity : Activity() {
             }
         })
         status = TextView(this).apply {
-            text = "1. Включите ScreenMirror RU на телевизоре.\n2. Нажмите «Найти телевизор автоматически».\n3. Нажмите «Начать трансляцию» и подтвердите системный запрос Android."
+            text = "1. Включите DmitryTranslation на телевизоре.\n2. Нажмите «Найти телевизор автоматически».\n3. Нажмите «Начать трансляцию» и подтвердите системный запрос Android."
             textSize = 14f
             setTextColor(Color.WHITE)
             setPadding(0, pad, 0, 0)
@@ -146,7 +146,7 @@ class MainActivity : Activity() {
                     status.text = "Не удалось открыть настройки разрешения «Поверх других окон». Его можно включить в настройках приложений Android."
                 }
             } else {
-                status.text = "Доступ «Поверх других окон» не выдан. Его можно включить в настройках ScreenMirror RU. Сама трансляция экрана может работать и без него."
+                status.text = "Доступ «Поверх других окон» не выдан. Его можно включить в настройках DmitryTranslation. Сама трансляция экрана может работать и без него."
             }
         }
         if (android.os.Build.VERSION.SDK_INT >= 33 && !notificationRequestAttempted &&
@@ -223,12 +223,12 @@ class MainActivity : Activity() {
     private fun launchQrScanner() {
         try {
             IntentIntegrator(this).setDesiredBarcodeFormats(IntentIntegrator.QR_CODE)
-                .setPrompt("Наведите камеру на QR-код ScreenMirror RU на телевизоре")
+                .setPrompt("Наведите камеру на QR-код DmitryTranslation на телевизоре")
                 .setBeepEnabled(false).setOrientationLocked(false).initiateScan()
         } catch (_: android.content.ActivityNotFoundException) {
             status.text = "Не удалось открыть сканер QR-кодов. Проверьте установку приложения и подключитесь автоматически или вручную."
         } catch (_: SecurityException) {
-            status.text = "Нет доступа к камере. Разрешите ScreenMirror RU использовать камеру в настройках Android."
+            status.text = "Нет доступа к камере. Разрешите DmitryTranslation использовать камеру в настройках Android."
         }
     }
 
@@ -256,9 +256,10 @@ class MainActivity : Activity() {
         val metrics = android.util.DisplayMetrics()
         @Suppress("DEPRECATION")
         (getSystemService(WINDOW_SERVICE) as android.view.WindowManager).defaultDisplay.getRealMetrics(metrics)
-        // Keep the native display resolution: do not downscale the captured screen.
-        val width = (metrics.widthPixels / 2) * 2
-        val height = (metrics.heightPixels / 2) * 2
+        // Preserve the display aspect ratio while keeping the long side within common hardware H.264 limits.
+        val scale = minOf(1f, 1920f / maxOf(metrics.widthPixels, metrics.heightPixels).toFloat())
+        val width = ((metrics.widthPixels * scale).toInt() / 2) * 2
+        val height = ((metrics.heightPixels * scale).toInt() / 2) * 2
         val fps = if (quality.selectedItemPosition == 2) 60 else 30
         val service = Intent(this, MirrorService::class.java).apply {
             putExtra("ip", address.text.toString().trim())
@@ -309,7 +310,7 @@ class MainActivity : Activity() {
                     tokenInput.setText(parts[2])
                     selectedToken = parts[2]
                     status.text = "QR-код распознан. Телевизор: ${parts[0]}. Теперь нажмите «Начать трансляцию»."
-                } else status.text = "Это не QR-код ScreenMirror RU."
+                } else status.text = "Это не QR-код DmitryTranslation."
             } else status.text = "Сканирование QR-кода отменено."
             return
         }

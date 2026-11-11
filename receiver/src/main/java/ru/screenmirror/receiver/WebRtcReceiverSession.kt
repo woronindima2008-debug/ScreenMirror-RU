@@ -40,7 +40,7 @@ class WebRtcReceiverSession(
             .createPeerConnectionFactory()
         renderer.init(egl.eglBaseContext, null)
         renderer.setScalingType(RendererCommon.ScalingType.SCALE_ASPECT_FIT)
-        renderer.setEnableHardwareScaler(true)
+        renderer.setEnableHardwareScaler(false)
         renderer.setMirror(false)
     }
 
@@ -71,11 +71,10 @@ class WebRtcReceiverSession(
             override fun onIceGatheringChange(state: PeerConnection.IceGatheringState?) {}
             override fun onIceCandidate(candidate: IceCandidate?) {
                 candidate ?: return
-                val msg = JSONObject().put("kind", "ice-candidate").put(
+                sendSignal(JSONObject().put("kind", "ice-candidate").put(
                     "candidate", JSONObject().put("candidate", candidate.sdp)
                         .put("sdpMid", candidate.sdpMid).put("sdpMLineIndex", candidate.sdpMLineIndex)
-                )
-                sendSignal(msg.toString())
+                ).toString())
             }
             override fun onIceCandidatesRemoved(candidates: Array<out IceCandidate>?) {}
             override fun onAddStream(stream: org.webrtc.MediaStream?) {}
@@ -100,12 +99,12 @@ class WebRtcReceiverSession(
                     }
                     remoteSink = sink
                     track.addSink(sink)
-                    onStatus("Видеодорожка подключена, ожидаю первый кадр…")
+                    onStatus("Видеодорожка подключена — запускаю отображение…")
                 }
             }
             override fun onConnectionChange(state: PeerConnection.PeerConnectionState?) {
                 onStatus(when (state) {
-                    PeerConnection.PeerConnectionState.CONNECTED -> "Соединение установлено, ожидаю первый видеокадр…"
+                    PeerConnection.PeerConnectionState.CONNECTED -> "Соединение установлено — включаю видеовывод…"
                     PeerConnection.PeerConnectionState.CONNECTING -> "Устанавливаем видеосоединение…"
                     PeerConnection.PeerConnectionState.DISCONNECTED -> "Связь потеряна. Ожидание повторного подключения…"
                     PeerConnection.PeerConnectionState.FAILED -> "Не удалось установить соединение"
@@ -114,7 +113,6 @@ class WebRtcReceiverSession(
             }
         })
         val pc = peer ?: return
-        val offer = SessionDescription(SessionDescription.Type.OFFER, sdp)
         pc.setRemoteDescription(object : SdpObserverAdapter() {
             override fun onSetSuccess() {
                 pendingCandidates.forEach { pc.addIceCandidate(it) }
@@ -133,7 +131,7 @@ class WebRtcReceiverSession(
                 }, MediaConstraints())
             }
             override fun onSetFailure(error: String?) { onStatus("Не удалось принять предложение: $error") }
-        }, offer)
+        }, SessionDescription(SessionDescription.Type.OFFER, sdp))
     }
 
     @Synchronized private fun closePeer(clearCandidates: Boolean = true) {

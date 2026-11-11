@@ -8,9 +8,11 @@ import android.net.nsd.NsdServiceInfo
 import android.os.Bundle
 import android.view.Gravity
 import android.view.View
+import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
 import org.json.JSONObject
@@ -22,19 +24,22 @@ import java.util.UUID
 
 class MainActivity : Activity() {
     private lateinit var status: TextView
-    private lateinit var root: LinearLayout
-    private lateinit var header: LinearLayout
-    private lateinit var footer: LinearLayout
-    private lateinit var qr: ImageView
+    private lateinit var root: FrameLayout
+    private lateinit var backgroundView: ImageView
+    private lateinit var backgroundShade: View
+    private lateinit var pairingContent: LinearLayout
+    private lateinit var renderer: SurfaceViewRenderer
+    private lateinit var pausedLayer: TextView
     private lateinit var nsd: NsdManager
     private lateinit var egl: EglBase
-    private lateinit var renderer: SurfaceViewRenderer
     private lateinit var session: WebRtcReceiverSession
     private lateinit var signaling: TvSignalingServer
     private lateinit var audioReceiver: PlaybackAudioReceiver
     private var registration: NsdManager.RegistrationListener? = null
     private val serviceType = "_screenmirror._tcp."
     private val token = UUID.randomUUID().toString().replace("-", "").take(8)
+    @Volatile private var streaming = false
+    @Volatile private var videoPaused = false
 
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
 
@@ -44,65 +49,105 @@ class MainActivity : Activity() {
         window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
         window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
-        root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-            setBackgroundResource(R.drawable.tv_pairing_bg)
-            setPadding(dp(28), dp(10), dp(28), dp(14))
+        root = FrameLayout(this).apply { setBackgroundColor(Color.BLACK); clipChildren = true }
+        backgroundView = ImageView(this).apply {
+            setImageResource(R.drawable.cosmic_background)
+            scaleType = ImageView.ScaleType.CENTER_CROP
+            contentDescription = "Космический фон DmitryTranslation"
         }
-        header = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER
-            setPadding(0, 0, 0, dp(8))
-        }
-        val logo = ImageView(this).apply { setImageResource(R.drawable.ic_launcher); scaleType = ImageView.ScaleType.FIT_CENTER }
-        header.addView(logo, LinearLayout.LayoutParams(dp(54), dp(54)))
-        val brand = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER; setPadding(dp(14), 0, 0, 0) }
-        brand.addView(TextView(this).apply { text = "ScreenMirror RU"; textSize = 24f; gravity = Gravity.CENTER; setTextColor(Color.WHITE); setTypeface(null, android.graphics.Typeface.BOLD) })
-        brand.addView(TextView(this).apply { text = "Беспроводная трансляция экрана"; textSize = 14f; gravity = Gravity.CENTER; setTextColor(Color.WHITE) })
-        header.addView(brand, LinearLayout.LayoutParams(0, -2, 1f))
-        root.addView(header, LinearLayout.LayoutParams(-1, -2))
+        root.addView(backgroundView, FrameLayout.LayoutParams(-1, -1))
+        backgroundShade = View(this).apply { setBackgroundColor(0x33030A18) }
+        root.addView(backgroundShade, FrameLayout.LayoutParams(-1, -1))
 
-        renderer = SurfaceViewRenderer(this)
-        renderer.setBackgroundColor(Color.TRANSPARENT)
-        renderer.visibility = View.GONE
-        root.addView(renderer, LinearLayout.LayoutParams(-1, 0, 1f))
-
-        footer = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-            setPadding(dp(14), dp(10), dp(14), dp(6))
+        renderer = SurfaceViewRenderer(this).apply {
+            setBackgroundColor(Color.BLACK)
+            visibility = View.GONE
         }
-        qr = ImageView(this).apply { adjustViewBounds = true; contentDescription = "QR-код для подключения телефона"; scaleType = ImageView.ScaleType.FIT_CENTER }
-        footer.addView(qr, LinearLayout.LayoutParams(dp(220), dp(220)))
-        status = TextView(this).apply {
-            textSize = 18f
+        root.addView(renderer, FrameLayout.LayoutParams(-1, -1))
+
+        pausedLayer = TextView(this).apply {
+            text = "Передача изображения приостановлена"
+            textSize = 27f
+            gravity = Gravity.CENTER
             setTextColor(Color.WHITE)
-            setPadding(dp(12), dp(10), dp(12), dp(8))
+            setBackgroundColor(0xE6080B12.toInt())
+            visibility = View.GONE
+            includeFontPadding = false
+        }
+        root.addView(pausedLayer, FrameLayout.LayoutParams(-1, -1))
+
+        pairingContent = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
+            setPadding(dp(30), dp(16), dp(30), dp(20))
+        }
+        val header = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setPadding(0, 0, 0, dp(12))
+        }
+        val logo = ImageView(this).apply {
+            setImageResource(R.mipmap.ic_launcher)
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            contentDescription = "DmitryTranslation"
+        }
+        header.addView(logo, LinearLayout.LayoutParams(dp(76), dp(76)))
+        header.addView(TextView(this).apply {
+            text = "DmitryTranslation"
+            textSize = 29f
+            gravity = Gravity.CENTER
+            setTextColor(Color.WHITE)
+            setTypeface(null, android.graphics.Typeface.BOLD)
+        }, LinearLayout.LayoutParams(-1, -2))
+        header.addView(TextView(this).apply {
+            text = "Беспроводная трансляция экрана"
+            textSize = 16f
+            gravity = Gravity.CENTER
+            setTextColor(0xFFEAF0FA.toInt())
+        }, LinearLayout.LayoutParams(-1, -2))
+        pairingContent.addView(header, LinearLayout.LayoutParams(-1, -2))
+
+        pairingContent.addView(TextView(this).apply {
+            text = "Отсканируйте QR-код на телефоне"
+            textSize = 18f
+            gravity = Gravity.CENTER
+            setTextColor(Color.WHITE)
+            setPadding(0, dp(4), 0, dp(10))
+        }, LinearLayout.LayoutParams(-1, -2))
+
+        val qr = ImageView(this).apply {
+            adjustViewBounds = true
+            contentDescription = "QR-код для подключения телефона"
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            setBackgroundColor(Color.WHITE)
+            setPadding(dp(8), dp(8), dp(8), dp(8))
+        }
+        pairingContent.addView(qr, LinearLayout.LayoutParams(dp(220), dp(220)).apply { gravity = Gravity.CENTER })
+
+        status = TextView(this).apply {
+            textSize = 17f
+            setTextColor(Color.WHITE)
+            setPadding(dp(12), dp(12), dp(12), dp(8))
+            gravity = Gravity.CENTER
+            includeFontPadding = false
             text = "Запуск приёмника…"
         }
-        footer.addView(status, LinearLayout.LayoutParams(-1, -2))
-        root.addView(footer, LinearLayout.LayoutParams(-1, -2))
+        pairingContent.addView(status, LinearLayout.LayoutParams(-1, -2))
+        root.addView(pairingContent, FrameLayout.LayoutParams(-1, -1))
         setContentView(root)
 
         egl = EglBase.create()
         session = WebRtcReceiverSession(this, egl, renderer, { signaling.sendToPhone(it) }) { message ->
             runOnUiThread {
                 status.text = message
-                val streaming = message.contains("первый видеокадр получен", true)
-                renderer.visibility = if (streaming) View.VISIBLE else View.GONE
-                renderer.setBackgroundColor(if (streaming) Color.BLACK else Color.TRANSPARENT)
-                header.visibility = if (streaming) View.GONE else View.VISIBLE
-                footer.visibility = if (streaming) View.GONE else View.VISIBLE
-                if (streaming) {
-                    root.setBackgroundColor(Color.BLACK)
-                    root.setPadding(0, 0, 0, 0)
-                } else {
-                    root.setBackgroundResource(R.drawable.tv_pairing_bg)
-                    root.setPadding(dp(28), dp(10), dp(28), dp(14))
+                val showVideo = message.contains("соединение установлено", true) ||
+                    message.contains("видеодорожка подключена", true) ||
+                    message.contains("первый видеокадр получен", true)
+                if (showVideo) showStreamingUi()
+                if (message.contains("Связь потеряна", true) || message.contains("Не удалось установить соединение", true)) {
+                    videoPaused = false
+                    showPairingUi()
                 }
-                renderer.setScalingType(org.webrtc.RendererCommon.ScalingType.SCALE_ASPECT_FIT)
             }
         }
         audioReceiver = PlaybackAudioReceiver(token).also { it.start() }
@@ -112,19 +157,24 @@ class MainActivity : Activity() {
             status.text = "Не удалось определить IP телевизора. Подключите ТВ к Wi-Fi или Ethernet."
             return
         }
-        showQr("$ip|8989|$token")
-        status.text = "Ожидаю телефон…\n\nОткройте ScreenMirror RU на телефоне и выберите этот телевизор.\n\nКод: $token"
+        showQr(qr, "$ip|8989|$token")
+        status.text = "Ожидаю телефон…\n\nОткройте DmitryTranslation на телефоне и выберите этот телевизор.\n\nКод: $token"
 
         signaling = TvSignalingServer(8989, token, { message ->
-            try { session.handleSignal(JSONObject(message)) } catch (_: Exception) {
+            try {
+                val json = JSONObject(message)
+                if (json.optString("kind") == "control") handlePhoneControl(json)
+                else session.handleSignal(json)
+            } catch (_: Exception) {
                 runOnUiThread { status.text = "Ошибка обработки сообщения от телефона. Перезапустите подключение." }
             }
         }, { connected ->
             runOnUiThread {
-                status.text = if (connected) {
-                    "Телефон подключён!\nСогласовываем видеопоток…"
-                } else {
-                    "Ожидаю телефон…\n\nОткройте ScreenMirror RU на телефоне и выберите этот телевизор.\n\nКод: $token"
+                if (connected) status.text = "Телефон подключён!\nСогласовываем видеопоток…"
+                else {
+                    videoPaused = false
+                    status.text = "Ожидаю телефон…\n\nОткройте DmitryTranslation на телефоне и выберите этот телевизор.\n\nКод: $token"
+                    showPairingUi()
                 }
             }
         })
@@ -136,7 +186,7 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun showQr(value: String) {
+    private fun showQr(qr: ImageView, value: String) {
         try {
             val matrix = QRCodeWriter().encode(value, BarcodeFormat.QR_CODE, 320, 320)
             val bitmap = Bitmap.createBitmap(320, 320, Bitmap.Config.ARGB_8888)
@@ -145,9 +195,46 @@ class MainActivity : Activity() {
         } catch (_: Exception) { status.text = "Не удалось создать QR-код." }
     }
 
+    private fun showStreamingUi() {
+        streaming = true
+        backgroundView.visibility = View.GONE
+        backgroundShade.visibility = View.GONE
+        pairingContent.visibility = View.GONE
+        renderer.visibility = View.VISIBLE
+        renderer.setBackgroundColor(Color.BLACK)
+        renderer.setScalingType(org.webrtc.RendererCommon.ScalingType.SCALE_ASPECT_FIT)
+        pausedLayer.visibility = if (videoPaused) View.VISIBLE else View.GONE
+    }
+
+    private fun showPairingUi() {
+        streaming = false
+        backgroundView.visibility = View.VISIBLE
+        backgroundShade.visibility = View.VISIBLE
+        pairingContent.visibility = View.VISIBLE
+        renderer.visibility = View.GONE
+        pausedLayer.visibility = View.GONE
+    }
+
+    private fun handlePhoneControl(json: JSONObject) {
+        val action = json.optString("action")
+        val enabled = json.optBoolean("enabled", true)
+        runOnUiThread {
+            when (action) {
+                "video" -> {
+                    videoPaused = !enabled
+                    if (streaming) {
+                        pausedLayer.text = "Передача изображения приостановлена"
+                        pausedLayer.visibility = if (enabled) View.GONE else View.VISIBLE
+                    }
+                }
+                "audio" -> Toast.makeText(this, if (enabled) "Звук включён" else "Звук выключен", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     private fun advertise(ip: String) {
         val info = NsdServiceInfo().apply {
-            serviceName = "ScreenMirror-RU-TV"
+            serviceName = "DmitryTranslation-TV"
             serviceType = this@MainActivity.serviceType
             port = 8989
             setAttribute("token", token)

@@ -15,6 +15,7 @@ import org.webrtc.ScreenCapturerAndroid
 import org.webrtc.SessionDescription
 import org.webrtc.SurfaceTextureHelper
 import org.webrtc.VideoSource
+import org.webrtc.VideoTrack
 
 class WebRtcSenderSession(
     context: Context,
@@ -28,6 +29,7 @@ class WebRtcSenderSession(
     private var capturer: ScreenCapturerAndroid? = null
     private var source: VideoSource? = null
     private var helper: SurfaceTextureHelper? = null
+    @Volatile private var videoTrack: VideoTrack? = null
     private val pendingCandidates = mutableListOf<IceCandidate>()
 
     init {
@@ -64,7 +66,7 @@ class WebRtcSenderSession(
             override fun onAddTrack(receiver: org.webrtc.RtpReceiver?, streams: Array<out org.webrtc.MediaStream>?) {}
             override fun onConnectionChange(state: PeerConnection.PeerConnectionState?) {
                 onStatus(when (state) {
-                    PeerConnection.PeerConnectionState.CONNECTED -> "Трансляция запущена"
+                    PeerConnection.PeerConnectionState.CONNECTED -> "DmitryTranslation: соединение установлено"
                     PeerConnection.PeerConnectionState.CONNECTING -> "Подключение к телевизору…"
                     PeerConnection.PeerConnectionState.DISCONNECTED -> "Связь потеряна"
                     PeerConnection.PeerConnectionState.FAILED -> "Не удалось установить соединение"
@@ -80,25 +82,31 @@ class WebRtcSenderSession(
                 stop()
             }
         })
-        val textureHelper = SurfaceTextureHelper.create("ScreenMirror-Capture", egl.eglBaseContext)
+        val textureHelper = SurfaceTextureHelper.create("DmitryTranslation-Capture", egl.eglBaseContext)
             ?: throw IllegalStateException("Не удалось создать SurfaceTextureHelper")
         screenCapturer.initialize(textureHelper, appContext, videoSource.capturerObserver)
-        screenCapturer.startCapture(width, height, fps)
-        val track = factory.createVideoTrack("screen-video", videoSource)
+
+        // Keep the long side <= 1920 for reliable hardware H.264 encoding, preserving aspect ratio.
+        val scale = minOf(1f, 1920f / maxOf(width, height).toFloat())
+        val captureWidth = ((width * scale).toInt() / 2) * 2
+        val captureHeight = ((height * scale).toInt() / 2) * 2
+        val track = factory.createVideoTrack("dmitrytranslation-screen", videoSource)
         track.setEnabled(true)
-        val videoSender = peer?.addTrack(track, listOf("screen-stream"))
-        // Preserve detail at native resolution and allow enough bitrate for a sharp screen.
-        videoSender?.parameters?.let { parameters ->
+        val videoSender = peer?.addTrack(track, listOf("dmitrytranslation-stream"))
+            ?: throw IllegalStateException("Не удалось добавить видеодорожку в WebRTC")
+        videoTrack = track
+        videoSender.parameters?.let { parameters ->
             parameters.encodings?.forEach { encoding ->
-                encoding.maxBitrateBps = 16_000_000
-                encoding.maxFramerate = fps
+                encoding.maxBitrateBps = 12_000_000
+                encoding.maxFramerate = fps.coerceIn(15, 60)
             }
             videoSender.setParameters(parameters)
         }
-
         capturer = screenCapturer
         source = videoSource
         helper = textureHelper
+        // Attach the track before starting capture so its first frames are not lost.
+        screenCapturer.startCapture(captureWidth.coerceAtLeast(2), captureHeight.coerceAtLeast(2), fps.coerceIn(15, 60))
 
         peer?.createOffer(object : SdpObserverAdapter() {
             override fun onCreateSuccess(desc: SessionDescription?) {
@@ -137,12 +145,15 @@ class WebRtcSenderSession(
         }
     }
 
+    @Synchronized fun setVideoEnabled(enabled: Boolean) { videoTrack?.setEnabled(enabled) }
+
     @Synchronized fun stop() {
         try { capturer?.stopCapture() } catch (_: Exception) {}
         try { capturer?.dispose() } catch (_: Exception) {}
         capturer = null
         try { source?.dispose() } catch (_: Exception) {}
         source = null
+        videoTrack = null
         try { helper?.dispose() } catch (_: Exception) {}
         helper = null
         try { peer?.close(); peer?.dispose() } catch (_: Exception) {}
