@@ -115,31 +115,33 @@ class MirrorService : Service() {
             setPadding(dp(10), dp(10), dp(10), dp(10))
             background = android.graphics.drawable.GradientDrawable().apply {
                 cornerRadius = dp(22).toFloat()
-                setColor(0xF2081020.toInt())
-                setStroke(dp(2), 0xFF5AB7FF.toInt())
+                setColor(0xE9080B16.toInt())
+                setStroke(dp(2), 0xFFFF6A22.toInt())
             }
             elevation = dp(12).toFloat()
+            clipToOutline = true
+            setBackgroundResource(R.drawable.panel_cosmic_fire)
         }
         fun addPanelRow(view: View) {
             root.addView(view, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(8) })
         }
 
-        val head = panelText("✦  КОСМИЧЕСКАЯ СТАНЦИЯ  ⋮", 0xFF102A4A.toInt(), 0xFF5AB7FF.toInt(), 0xFFF1F7FF.toInt(), 46)
-        val sound = panelText("♫  Звук: ВКЛ", 0xFF183B5C.toInt(), 0xFF397FB8.toInt(), 0xFFEAF4FF.toInt())
-        val picture = panelText("▣  Изображение: ВКЛ", 0xFF183B5C.toInt(), 0xFF397FB8.toInt(), 0xFFEAF4FF.toInt())
-        val finish = panelText("⏻  Завершить трансляцию", 0xFF512638.toInt(), 0xFFB65A78.toInt(), 0xFFFFEAF0.toInt())
+        val head = panelText("✦  КОСМИЧЕСКАЯ СТАНЦИЯ  ⋮", 0x660A0D16.toInt(), 0xFFFF7A2D.toInt(), 0xFFFFF5EE.toInt(), 46)
+        val sound = panelText("♫  Звук: ВКЛ", 0x99060912.toInt(), 0xFFFF8A3D.toInt(), 0xFFFFF5EE.toInt())
+        val picture = panelText("▣  Изображение: ВКЛ", 0x99060912.toInt(), 0xFFFF8A3D.toInt(), 0xFFFFF5EE.toInt())
+        val finish = panelText("⏻  Завершить трансляцию", 0xAA210B0A.toInt(), 0xFFFF6238.toInt(), 0xFFFFEAE3.toInt())
         sound.setOnClickListener {
             audioEnabled = !audioEnabled
             sound.text = if (audioEnabled) "♫  Звук: ВКЛ" else "♫  Звук: ВЫКЛ"
-            actionBackground(sound, if (audioEnabled) 0xFF183B5C.toInt() else 0xFF3D2638.toInt(),
-                if (audioEnabled) 0xFF397FB8.toInt() else 0xFFB65A78.toInt())
+            actionBackground(sound, if (audioEnabled) 0x99060912.toInt() else 0xAA210B0A.toInt(),
+                if (audioEnabled) 0xFFFF8A3D.toInt() else 0xFFFF6238.toInt())
             sendControl(if (audioEnabled) 2 else 3)
         }
         picture.setOnClickListener {
             videoEnabled = !videoEnabled
             picture.text = if (videoEnabled) "▣  Изображение: ВКЛ" else "▣  Изображение: ВЫКЛ"
-            actionBackground(picture, if (videoEnabled) 0xFF183B5C.toInt() else 0xFF3D2638.toInt(),
-                if (videoEnabled) 0xFF397FB8.toInt() else 0xFFB65A78.toInt())
+            actionBackground(picture, if (videoEnabled) 0x99060912.toInt() else 0xAA210B0A.toInt(),
+                if (videoEnabled) 0xFFFF8A3D.toInt() else 0xFFFF6238.toInt())
             sendControl(if (videoEnabled) 4 else 5)
         }
         finish.setOnClickListener { stopSelf() }
