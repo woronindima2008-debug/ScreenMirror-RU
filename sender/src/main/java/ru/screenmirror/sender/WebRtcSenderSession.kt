@@ -41,7 +41,9 @@ class WebRtcSenderSession(
     }
 
     fun start(permissionData: Intent, width: Int, height: Int, fps: Int) {
-        val config = PeerConnection.RTCConfiguration(emptyList())
+        val config = PeerConnection.RTCConfiguration(listOf(
+            PeerConnection.IceServer.builder("stun:stun.l.google.com:19302").createIceServer()
+        ))
         peer = factory.createPeerConnection(config, object : PeerConnection.Observer {
             override fun onSignalingChange(state: PeerConnection.SignalingState?) {}
             override fun onIceConnectionChange(state: PeerConnection.IceConnectionState?) {}
@@ -84,7 +86,15 @@ class WebRtcSenderSession(
         screenCapturer.startCapture(width, height, fps)
         val track = factory.createVideoTrack("screen-video", videoSource)
         track.setEnabled(true)
-        peer?.addTrack(track, listOf("screen-stream"))
+        val videoSender = peer?.addTrack(track, listOf("screen-stream"))
+        // Preserve detail at native resolution and allow enough bitrate for a sharp screen.
+        videoSender?.parameters?.let { parameters ->
+            parameters.encodings?.forEach { encoding ->
+                encoding.maxBitrateBps = 16_000_000
+                encoding.maxFramerate = fps
+            }
+            videoSender.setParameters(parameters)
+        }
 
         capturer = screenCapturer
         source = videoSource
