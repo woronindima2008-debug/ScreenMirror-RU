@@ -84,27 +84,70 @@ class MirrorService : Service() {
     private fun createPanel() {
         if (Build.VERSION.SDK_INT < 26 || !Settings.canDrawOverlays(this)) return
         wm = getSystemService(WINDOW_SERVICE) as WindowManager
+        val density = resources.displayMetrics.density
+        fun dp(value: Int) = (value * density).toInt()
+        fun panelText(label: String, fill: Int, stroke: Int, foreground: Int, height: Int = 48): TextView =
+            TextView(this).apply {
+                text = label
+                textSize = 14f
+                gravity = Gravity.CENTER
+                setTextColor(foreground)
+                setPadding(dp(14), dp(8), dp(14), dp(8))
+                minHeight = dp(height)
+                isClickable = true
+                isFocusable = true
+                background = android.graphics.drawable.GradientDrawable().apply {
+                    cornerRadius = dp(14).toFloat()
+                    setColor(fill)
+                    setStroke(dp(1).coerceAtLeast(1), stroke)
+                }
+            }
+        fun actionBackground(view: TextView, fill: Int, stroke: Int) {
+            view.background = android.graphics.drawable.GradientDrawable().apply {
+                cornerRadius = dp(14).toFloat()
+                setColor(fill)
+                setStroke(dp(1).coerceAtLeast(1), stroke)
+            }
+        }
+
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(8, 8, 8, 8)
-            background = android.graphics.drawable.GradientDrawable().apply { cornerRadius = 22f; setColor(0xF2081020.toInt()); setStroke(2, 0xFF5AB7FF.toInt()) }
+            setPadding(dp(10), dp(10), dp(10), dp(10))
+            background = android.graphics.drawable.GradientDrawable().apply {
+                cornerRadius = dp(22).toFloat()
+                setColor(0xF2081020.toInt())
+                setStroke(dp(2), 0xFF5AB7FF.toInt())
+            }
+            elevation = dp(12).toFloat()
         }
-        val head = Button(this).apply { text = "✦  КОСМИЧЕСКАЯ СТАНЦИЯ  ⋮"; setTextColor(0xFFF1F7FF.toInt()); textSize = 12f; background = android.graphics.drawable.GradientDrawable().apply { cornerRadius = 16f; setColor(0xFF102A4A.toInt()); setStroke(1, 0xFF5AB7FF.toInt()) } }
-        val sound = Button(this).apply { text = "◖))  Звук: ВКЛ"; setTextColor(0xFFEAF4FF.toInt()); backgroundTintList = android.content.res.ColorStateList.valueOf(0xFF183B5C.toInt()) }
-        val picture = Button(this).apply { text = "▣  Изображение: ВКЛ"; setTextColor(0xFFEAF4FF.toInt()); backgroundTintList = android.content.res.ColorStateList.valueOf(0xFF183B5C.toInt()) }
-        val finish = Button(this).apply { text = "⏻  Завершить трансляцию"; setTextColor(0xFFFFEAF0.toInt()); backgroundTintList = android.content.res.ColorStateList.valueOf(0xFF67283B.toInt()) }
+        fun addPanelRow(view: View) {
+            root.addView(view, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(8) })
+        }
+
+        val head = panelText("✦  КОСМИЧЕСКАЯ СТАНЦИЯ  ⋮", 0xFF102A4A.toInt(), 0xFF5AB7FF.toInt(), 0xFFF1F7FF.toInt(), 46)
+        val sound = panelText("♫  Звук: ВКЛ", 0xFF183B5C.toInt(), 0xFF397FB8.toInt(), 0xFFEAF4FF.toInt())
+        val picture = panelText("▣  Изображение: ВКЛ", 0xFF183B5C.toInt(), 0xFF397FB8.toInt(), 0xFFEAF4FF.toInt())
+        val finish = panelText("⏻  Завершить трансляцию", 0xFF512638.toInt(), 0xFFB65A78.toInt(), 0xFFFFEAF0.toInt())
         sound.setOnClickListener {
             audioEnabled = !audioEnabled
-            sound.text = if (audioEnabled) "♫ Звук: ВКЛ" else "♫ Звук: ВЫКЛ"
+            sound.text = if (audioEnabled) "♫  Звук: ВКЛ" else "♫  Звук: ВЫКЛ"
+            actionBackground(sound, if (audioEnabled) 0xFF183B5C.toInt() else 0xFF3D2638.toInt(),
+                if (audioEnabled) 0xFF397FB8.toInt() else 0xFFB65A78.toInt())
             sendControl(if (audioEnabled) 2 else 3)
         }
         picture.setOnClickListener {
             videoEnabled = !videoEnabled
-            picture.text = if (videoEnabled) "▣ Изображение: ВКЛ" else "▣ Изображение: ВЫКЛ"
+            picture.text = if (videoEnabled) "▣  Изображение: ВКЛ" else "▣  Изображение: ВЫКЛ"
+            actionBackground(picture, if (videoEnabled) 0xFF183B5C.toInt() else 0xFF3D2638.toInt(),
+                if (videoEnabled) 0xFF397FB8.toInt() else 0xFFB65A78.toInt())
             sendControl(if (videoEnabled) 4 else 5)
         }
         finish.setOnClickListener { stopSelf() }
-        root.addView(head); root.addView(sound); root.addView(picture); root.addView(finish)
+        addPanelRow(head)
+        addPanelRow(sound)
+        addPanelRow(picture)
+        root.addView(finish, LinearLayout.LayoutParams(-1, -2))
+
         var compact = false
         head.setOnClickListener {
             compact = !compact
@@ -118,14 +161,14 @@ class MirrorService : Service() {
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
             PixelFormat.TRANSLUCENT
-        ).apply { gravity = Gravity.TOP or Gravity.END; x = 20; y = 120 }
+        ).apply { gravity = Gravity.TOP or Gravity.END; x = dp(20); y = dp(120) }
         head.setOnTouchListener(object : View.OnTouchListener {
             var downX = 0f; var downY = 0f; var startX = 0; var startY = 0; var dragged = false
             override fun onTouch(v: View, event: MotionEvent): Boolean {
                 when (event.action) {
                     MotionEvent.ACTION_DOWN -> { downX = event.rawX; downY = event.rawY; startX = params.x; startY = params.y; dragged = false; return true }
                     MotionEvent.ACTION_MOVE -> {
-                        if (kotlin.math.abs(event.rawX - downX) > 8 || kotlin.math.abs(event.rawY - downY) > 8) dragged = true
+                        if (kotlin.math.abs(event.rawX - downX) > dp(8) || kotlin.math.abs(event.rawY - downY) > dp(8)) dragged = true
                         params.x = startX + (downX - event.rawX).toInt()
                         params.y = startY + (event.rawY - downY).toInt()
                         try { wm?.updateViewLayout(root, params) } catch (_: Exception) {}
@@ -137,7 +180,10 @@ class MirrorService : Service() {
             }
         })
         panel = root
-        try { wm?.addView(root, params) } catch (e: Exception) { android.util.Log.e("DmitryTranslation", "Overlay unavailable", e); panel = null }
+        try { wm?.addView(root, params) } catch (e: Exception) {
+            android.util.Log.e("DmitryTranslation", "Overlay unavailable", e)
+            panel = null
+        }
     }
 
     private fun sendControl(command: Int) {
