@@ -65,7 +65,7 @@ class MainActivity : Activity() {
 
         renderer = SurfaceViewRenderer(this)
         renderer.setBackgroundColor(Color.TRANSPARENT)
-        renderer.visibility = View.INVISIBLE
+        renderer.visibility = View.GONE
         root.addView(renderer, LinearLayout.LayoutParams(-1, 0, 1f))
 
         footer = LinearLayout(this).apply {
@@ -91,7 +91,7 @@ class MainActivity : Activity() {
             runOnUiThread {
                 status.text = message
                 val streaming = message.contains("первый видеокадр получен", true)
-                renderer.visibility = if (streaming) View.VISIBLE else View.INVISIBLE
+                renderer.visibility = if (streaming) View.VISIBLE else View.GONE
                 renderer.setBackgroundColor(if (streaming) Color.BLACK else Color.TRANSPARENT)
                 header.visibility = if (streaming) View.GONE else View.VISIBLE
                 footer.visibility = if (streaming) View.GONE else View.VISIBLE
