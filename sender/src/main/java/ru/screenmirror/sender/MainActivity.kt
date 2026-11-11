@@ -1,332 +1,200 @@
 package ru.screenmirror.sender
 
+import android.Manifest
 import android.app.Activity
-import android.graphics.Color
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.media.projection.MediaProjectionManager
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
 import android.net.Uri
-import android.provider.Settings
 import android.os.Bundle
+import android.provider.Settings
 import android.view.Gravity
-import android.view.View
 import android.view.ViewGroup
-import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
-import android.widget.ImageView
 import android.widget.LinearLayout
-import android.widget.Spinner
-import android.widget.ScrollView
 import android.widget.TextView
-import android.widget.Switch
 import com.google.zxing.integration.android.IntentIntegrator
 
 class MainActivity : Activity() {
     private lateinit var address: EditText
-    private lateinit var tokenInput: EditText
     private lateinit var status: TextView
-    private lateinit var quality: Spinner
-    private lateinit var audioSwitch: Switch
-    private lateinit var nsdManager: NsdManager
-    private var discoveryListener: NsdManager.DiscoveryListener? = null
-    private var resolving = false
-    private var selectedToken = ""
     private val projectionRequest = 4102
-    private val audioPermissionRequest = 4103
-    private val cameraPermissionRequest = 4104
-    private val notificationPermissionRequest = 4105
-    private var overlayRequestAttempted = false
-    private var notificationRequestAttempted = false
-    private val serviceType = "_screenmirror._tcp."
-
-    private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
+    private val overlayRequest = 4103
+    private val audioPermissionRequest = 4104
+    private var discovery: NsdManager? = null
+    private var discoveryListener: NsdManager.DiscoveryListener? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        nsdManager = getSystemService(NSD_SERVICE) as NsdManager
-        val pad = dp(20)
+        val pad = (20 * resources.displayMetrics.density).toInt()
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-            minimumHeight = resources.displayMetrics.heightPixels
-            setPadding(pad, dp(24), pad, pad)
-            setBackgroundResource(R.drawable.cosmic_background)
+            gravity = Gravity.CENTER
+            setPadding(pad, pad, pad, pad)
         }
-        val scroll = ScrollView(this).apply { isFillViewport = true; clipToPadding = false; setBackgroundColor(Color.TRANSPARENT) }
-        val header = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        header.addView(ImageView(this).apply { setImageResource(R.mipmap.ic_launcher); scaleType = ImageView.ScaleType.FIT_CENTER },
-            LinearLayout.LayoutParams(dp(58), dp(58)))
-        header.addView(TextView(this).apply {
-            text = "DmitryTranslation"
-            textSize = 27f
-            setTypeface(null, android.graphics.Typeface.BOLD)
-            setTextColor(android.graphics.Color.WHITE)
-            setPadding(dp(12), 0, 0, 0)
-        }, LinearLayout.LayoutParams(0, -2, 1f))
-        layout.addView(header, ViewGroup.LayoutParams(-1, -2))
         layout.addView(TextView(this).apply {
-            text = "Передавайте экран телефона на телевизор по домашней сети Wi-Fi."
-            textSize = 16f
-            setTextColor(Color.WHITE)
+            text = "✦ DmitryTranslation"
+            textSize = 28f
+            setTextColor(android.graphics.Color.WHITE)
+            setTypeface(null, android.graphics.Typeface.BOLD)
+            gravity = Gravity.CENTER
+        }, ViewGroup.LayoutParams(-1, -2))
+        layout.addView(TextView(this).apply {
+            text = "КОСМИЧЕСКАЯ СТАНЦИЯ  •  БЕСПРОВОДНАЯ ПЕРЕДАЧА"
+            textSize = 14f
+            gravity = Gravity.CENTER
+            setTextColor(0xFFD8E8FF.toInt())
             setPadding(0, pad, 0, pad)
         })
-        address = EditText(this).apply { hint = "IP-адрес телевизора"; setSingleLine(true); setTextColor(Color.WHITE); setHintTextColor(Color.WHITE) }
+        address = EditText(this).apply {
+            setTextColor(android.graphics.Color.WHITE)
+            setHintTextColor(0xFFB7C9E8.toInt())
+            setBackgroundTintList(android.content.res.ColorStateList.valueOf(0xFF69B8FF.toInt()))
+            hint = "IP-адрес телевизора"
+            setSingleLine(true)
+            inputType = android.text.InputType.TYPE_CLASS_TEXT
+        }
         layout.addView(address, ViewGroup.LayoutParams(-1, -2))
-        tokenInput = EditText(this).apply { hint = "Код сопряжения (из QR-кода)"; setSingleLine(true); setTextColor(Color.WHITE); setHintTextColor(Color.WHITE) }
-        layout.addView(tokenInput, ViewGroup.LayoutParams(-1, -2))
         layout.addView(Button(this).apply {
             text = "Найти телевизор автоматически"
-            setTextColor(Color.WHITE)
-            setOnClickListener { discoverReceiver() }
+            setOnClickListener { discoverTv() }
         })
         layout.addView(Button(this).apply {
-            text = "Сканировать QR-код телевизора"
-            setTextColor(Color.WHITE)
-            setOnClickListener { requestCameraAndScan() }
-        })
-        layout.addView(TextView(this).apply { text = "Качество трансляции"; setTextColor(android.graphics.Color.WHITE); setPadding(0, pad, 0, 4) })
-        quality = Spinner(this).apply {
-            val options = listOf("Сбалансированное — до 720p / 30 кадров", "Высокое — до 1080p / 30 кадров", "Плавное — до 1080p / 60 кадров")
-            adapter = object : ArrayAdapter<String>(this@MainActivity, android.R.layout.simple_spinner_item, options) {
-                override fun getView(position: Int, convertView: View?, parent: ViewGroup): View =
-                    (super.getView(position, convertView, parent) as TextView).apply { setTextColor(Color.WHITE) }
-                override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View =
-                    (super.getDropDownView(position, convertView, parent) as TextView).apply {
-                        setTextColor(Color.WHITE)
-                        setBackgroundColor(Color.rgb(12, 22, 36))
-                        setPadding(dp(12), dp(10), dp(12), dp(10))
-                    }
+            text = "Сканировать QR-код"
+            setOnClickListener {
+                IntentIntegrator(this@MainActivity)
+                    .setPrompt("Наведите камеру на QR-код DmitryTranslation на телевизоре")
+                    .setBeepEnabled(false)
+                    .initiateScan()
             }
-        }
-        layout.addView(quality, ViewGroup.LayoutParams(-1, -2))
-        quality.setSelection(1)
-        audioSwitch = Switch(this).apply {
-            text = "Передавать звук приложений (Android 10+)"
-            setTextColor(Color.WHITE)
-            isChecked = true
-            if (android.os.Build.VERSION.SDK_INT < 29) isEnabled = false
-        }
-        layout.addView(audioSwitch, ViewGroup.LayoutParams(-1, -2))
+        })
         layout.addView(Button(this).apply {
             text = "Начать трансляцию"
-            setTextColor(Color.WHITE)
-            setOnClickListener { requestAudioOrStart() }
-        })
-        layout.addView(Button(this).apply {
-            text = "Остановить трансляцию"
-            setTextColor(Color.WHITE)
             setOnClickListener {
-                stopService(Intent(this@MainActivity, MirrorService::class.java))
-                status.text = "Трансляция остановлена."
+                if (address.text.toString().trim().isBlank()) {
+                    status.text = "Укажите IP или найдите телевизор автоматически"
+                    return@setOnClickListener
+                }
+                if (!Settings.canDrawOverlays(this@MainActivity)) {
+                    startActivityForResult(
+                        Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")),
+                        overlayRequest
+                    )
+                } else continueToCapture()
             }
         })
         status = TextView(this).apply {
-            text = "1. Включите DmitryTranslation на телевизоре.\n2. Нажмите «Найти телевизор автоматически».\n3. Нажмите «Начать трансляцию» и подтвердите системный запрос Android."
+            text = "Готово к подключению"
             textSize = 14f
-            setTextColor(Color.WHITE)
             setPadding(0, pad, 0, 0)
         }
         layout.addView(status)
-        scroll.addView(layout, ViewGroup.LayoutParams(-1, -2))
-        setContentView(scroll)
+        val root = android.widget.FrameLayout(this)
+        val backdrop = android.widget.ImageView(this).apply {
+            setImageResource(R.drawable.cosmic_background)
+            scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
+        }
+        root.addView(backdrop, android.widget.FrameLayout.LayoutParams(-1, -1))
+        root.addView(android.view.View(this).apply { setBackgroundColor(0x66030A18) }, android.widget.FrameLayout.LayoutParams(-1, -1))
+        root.addView(layout, android.widget.FrameLayout.LayoutParams(-1, -1))
+        setContentView(root)
     }
 
-    override fun onResume() {
-        super.onResume()
-        if (android.os.Build.VERSION.SDK_INT >= 23 && !Settings.canDrawOverlays(this)) {
-            if (!overlayRequestAttempted) {
-                overlayRequestAttempted = true
-                status.text = "Для разрешения отображения поверх других окон откроются специальные настройки Android. Разрешите доступ и вернитесь в приложение."
-                try {
-                    startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
-                    return
-                } catch (_: Exception) {
-                    status.text = "Не удалось открыть настройки разрешения «Поверх других окон». Его можно включить в настройках приложений Android."
-                }
-            } else {
-                status.text = "Доступ «Поверх других окон» не выдан. Его можно включить в настройках DmitryTranslation. Сама трансляция экрана может работать и без него."
-            }
-        }
-        if (android.os.Build.VERSION.SDK_INT >= 33 && !notificationRequestAttempted &&
-            checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-            notificationRequestAttempted = true
-            requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), notificationPermissionRequest)
-        }
-    }
-
-    private fun discoverReceiver() {
-        stopDiscovery()
-        resolving = false
-        status.text = "Ищу телевизор в локальной сети…"
-        val listener = object : NsdManager.DiscoveryListener {
-            override fun onDiscoveryStarted(regType: String) {}
-            override fun onServiceFound(service: NsdServiceInfo) {
-                if (!service.serviceType.contains("_screenmirror._tcp", true) || resolving) return
-                resolving = true
-                @Suppress("DEPRECATION")
-                nsdManager.resolveService(service, object : NsdManager.ResolveListener {
-                    override fun onResolveFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
-                        resolving = false
-                        runOnUiThread { status.text = "Телевизор обнаружен, но не удалось получить адрес (код $errorCode). Попробуйте QR-код." }
-                    }
-                    override fun onServiceResolved(serviceInfo: NsdServiceInfo) {
-                        resolving = false
-                        val host = serviceInfo.host?.hostAddress
-                        val token = serviceInfo.attributes["token"]?.toString(Charsets.UTF_8)
-                        if (!host.isNullOrBlank() && !token.isNullOrBlank()) {
-                            runOnUiThread {
-                                address.setText(host)
-                                tokenInput.setText(token)
-                                selectedToken = token
-                                status.text = "Телевизор найден: $host.\nТеперь нажмите «Начать трансляцию» и разрешите захват экрана."
-                                stopDiscovery()
-                            }
-                        } else {
-                            runOnUiThread { status.text = "Телевизор найден, но не передал данные сопряжения. Используйте QR-код." }
-                        }
-                    }
-                })
-            }
-            override fun onServiceLost(service: NsdServiceInfo) {}
-            override fun onDiscoveryStopped(serviceType: String) {}
-            override fun onStartDiscoveryFailed(serviceType: String, errorCode: Int) {
-                stopDiscovery()
-                runOnUiThread { status.text = "Не удалось начать поиск телевизора (код $errorCode)." }
-            }
-            override fun onStopDiscoveryFailed(serviceType: String, errorCode: Int) {
-                try { nsdManager.stopServiceDiscovery(this) } catch (_: Exception) {}
-            }
-        }
-        discoveryListener = listener
-        try { nsdManager.discoverServices(serviceType, NsdManager.PROTOCOL_DNS_SD, listener) }
-        catch (e: Exception) {
-            discoveryListener = null
-            status.text = "Ошибка поиска: ${e.localizedMessage ?: "неизвестная ошибка"}"
-        }
-    }
-
-    private fun requestCameraAndScan() {
-        if (!packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_CAMERA_ANY)) {
-            status.text = "На этом телефоне не обнаружена камера. Подключитесь к телевизору автоматически или введите IP и код вручную."
-            return
-        }
-        if (android.os.Build.VERSION.SDK_INT >= 23 &&
-            checkSelfPermission(android.Manifest.permission.CAMERA) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(arrayOf(android.Manifest.permission.CAMERA), cameraPermissionRequest)
-            return
-        }
-        launchQrScanner()
-    }
-
-    private fun launchQrScanner() {
+    private fun discoverTv() {
         try {
-            IntentIntegrator(this).setDesiredBarcodeFormats(IntentIntegrator.QR_CODE)
-                .setPrompt("Наведите камеру на QR-код DmitryTranslation на телевизоре")
-                .setBeepEnabled(false).setOrientationLocked(false).initiateScan()
-        } catch (_: android.content.ActivityNotFoundException) {
-            status.text = "Не удалось открыть сканер QR-кодов. Проверьте установку приложения и подключитесь автоматически или вручную."
-        } catch (_: SecurityException) {
-            status.text = "Нет доступа к камере. Разрешите DmitryTranslation использовать камеру в настройках Android."
-        }
-    }
-
-    private fun requestAudioOrStart() {
-        if (audioSwitch.isChecked && android.os.Build.VERSION.SDK_INT >= 29 &&
-            checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(arrayOf(android.Manifest.permission.RECORD_AUDIO), audioPermissionRequest)
-        } else startProjection()
-    }
-
-    private fun startProjection() {
-        val ip = address.text.toString().trim()
-        val token = tokenInput.text.toString().trim().ifBlank { selectedToken }
-        if (ip.isBlank() || token.isBlank()) {
-            status.text = "Сначала найдите телевизор автоматически или отсканируйте его QR-код."
-            return
-        }
-        selectedToken = token
-        status.text = "Android запросит разрешение на захват экрана. Подтвердите его, чтобы начать трансляцию."
-        val manager = getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-        startActivityForResult(manager.createScreenCaptureIntent(), projectionRequest)
-    }
-
-    private fun startSenderService(resultCode: Int, data: Intent) {
-        val metrics = android.util.DisplayMetrics()
-        @Suppress("DEPRECATION")
-        (getSystemService(WINDOW_SERVICE) as android.view.WindowManager).defaultDisplay.getRealMetrics(metrics)
-        // Preserve the display aspect ratio while keeping the long side within common hardware H.264 limits.
-        val scale = minOf(1f, 1920f / maxOf(metrics.widthPixels, metrics.heightPixels).toFloat())
-        val width = ((metrics.widthPixels * scale).toInt() / 2) * 2
-        val height = ((metrics.heightPixels * scale).toInt() / 2) * 2
-        val fps = if (quality.selectedItemPosition == 2) 60 else 30
-        val service = Intent(this, MirrorService::class.java).apply {
-            putExtra("ip", address.text.toString().trim())
-            putExtra("token", selectedToken)
-            putExtra("resultCode", resultCode)
-            putExtra("projectionData", data)
-            putExtra("width", width.coerceAtLeast(2))
-            putExtra("height", height.coerceAtLeast(2))
-            putExtra("fps", fps)
-            putExtra("audioEnabled", audioSwitch.isChecked &&
-                android.os.Build.VERSION.SDK_INT >= 29 &&
-                checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED)
-        }
-        if (android.os.Build.VERSION.SDK_INT >= 26) startForegroundService(service) else startService(service)
-        status.text = "Запрашиваем подключение к телевизору… Если соединение не появится, проверьте, что оба устройства в одной Wi-Fi-сети."
-    }
-
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == cameraPermissionRequest) {
-            if (grantResults.firstOrNull() == android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                launchQrScanner()
-            } else {
-                status.text = "Без доступа к камере QR-код не отсканировать. Разрешите камеру или подключитесь автоматически."
+            discovery = getSystemService(NSD_SERVICE) as NsdManager
+            val listener = object : NsdManager.DiscoveryListener {
+                override fun onDiscoveryStarted(type: String) {
+                    runOnUiThread { status.text = "Поиск DmitryTranslation в сети…" }
+                }
+                override fun onServiceFound(service: NsdServiceInfo) {
+                    if (service.serviceType.contains("_screenmirror._tcp")) {
+                        discovery?.resolveService(service, object : NsdManager.ResolveListener {
+                            override fun onResolveFailed(info: NsdServiceInfo, errorCode: Int) {
+                                runOnUiThread { status.text = "Не удалось определить адрес телевизора" }
+                            }
+                            @Suppress("DEPRECATION")
+                            override fun onServiceResolved(info: NsdServiceInfo) {
+                                val host = info.host?.hostAddress
+                                if (!host.isNullOrBlank()) runOnUiThread {
+                                    address.setText(host)
+                                    status.text = "Телевизор найден: $host"
+                                }
+                            }
+                        })
+                    }
+                }
+                override fun onServiceLost(service: NsdServiceInfo) {}
+                override fun onStartDiscoveryFailed(type: String, errorCode: Int) {
+                    runOnUiThread { status.text = "Ошибка поиска телевизора" }
+                    try { discovery?.stopServiceDiscovery(this) } catch (_: Exception) {}
+                }
+                override fun onStopDiscoveryFailed(type: String, errorCode: Int) {}
+                override fun onDiscoveryStopped(type: String) {}
             }
-        } else if (requestCode == notificationPermissionRequest) {
-            if (grantResults.firstOrNull() != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                status.text = "Уведомления отключены. Для работы трансляции разрешите уведомления в настройках приложения."
-            }
-        } else if (requestCode == audioPermissionRequest) {
-            if (grantResults.firstOrNull() != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                audioSwitch.isChecked = false
-                status.text = "Разрешение на звук не выдано. Продолжим трансляцию без звука."
-            }
-            startProjection()
+            discoveryListener = listener
+            discovery?.discoverServices("_screenmirror._tcp.", NsdManager.PROTOCOL_DNS_SD, listener)
+        } catch (e: Exception) {
+            status.text = "Автопоиск недоступен. Можно ввести IP вручную."
         }
     }
 
-    @Deprecated("Activity result API retained for compatibility")
+    @Deprecated("Activity result API retained for broad device compatibility")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         val scan = IntentIntegrator.parseActivityResult(requestCode, resultCode, data)
         if (scan != null) {
-            if (scan.contents != null) {
-                val parts = scan.contents.split("|")
-                if (parts.size == 3 && parts[1] == "8989" && parts[2].isNotBlank()) {
-                    address.setText(parts[0])
-                    tokenInput.setText(parts[2])
-                    selectedToken = parts[2]
-                    status.text = "QR-код распознан. Телевизор: ${parts[0]}. Теперь нажмите «Начать трансляцию»."
-                } else status.text = "Это не QR-код DmitryTranslation."
-            } else status.text = "Сканирование QR-кода отменено."
+            if (scan.contents?.startsWith("screenmirror://") == true) {
+                val hostPort = scan.contents.removePrefix("screenmirror://")
+                address.setText(hostPort.substringBefore(":"))
+                status.text = "Телевизор выбран по QR-коду"
+            } else if (scan.contents != null) status.text = "Это не QR-код DmitryTranslation"
             return
         }
-        if (requestCode == projectionRequest && resultCode == RESULT_OK && data != null) {
-            startSenderService(resultCode, data)
-        } else if (requestCode == projectionRequest) status.text = "Трансляция не запущена: разрешение на захват экрана не выдано."
+        if (requestCode == overlayRequest) {
+            if (Settings.canDrawOverlays(this)) continueToCapture()
+            else status.text = "Для плавающей панели разрешите показ поверх других приложений."
+        } else if (requestCode == projectionRequest && resultCode == RESULT_OK && data != null) {
+            val service = Intent(this, MirrorService::class.java).apply {
+                putExtra("ip", address.text.toString().trim())
+                putExtra("resultCode", resultCode)
+                putExtra("projectionData", data)
+            }
+            startForegroundService(service)
+            status.text = "Запуск DmitryTranslation…"
+        } else if (requestCode == projectionRequest) status.text = "Разрешение на трансляцию не выдано."
     }
 
-    private fun stopDiscovery() {
-        val listener = discoveryListener ?: return
-        discoveryListener = null
-        try { nsdManager.stopServiceDiscovery(listener) } catch (_: Exception) {}
+    private fun continueToCapture() {
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), audioPermissionRequest)
+        } else requestCapture()
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == audioPermissionRequest) {
+            if (grantResults.firstOrNull() != PackageManager.PERMISSION_GRANTED) {
+                status.text = "Доступ к звуку не выдан: трансляция продолжится без звука."
+            }
+            requestCapture()
+        }
+    }
+
+    private fun requestCapture() {
+        val manager = getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+        startActivityForResult(manager.createScreenCaptureIntent(), projectionRequest)
     }
 
     override fun onDestroy() {
-        stopDiscovery()
+        try { discoveryListener?.let { discovery?.stopServiceDiscovery(it) } } catch (_: Exception) {}
         super.onDestroy()
     }
 }
