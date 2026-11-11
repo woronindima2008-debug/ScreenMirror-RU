@@ -6,6 +6,8 @@ import android.content.Intent
 import android.media.projection.MediaProjectionManager
 import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
+import android.net.Uri
+import android.provider.Settings
 import android.os.Bundle
 import android.view.Gravity
 import android.view.View
@@ -34,6 +36,9 @@ class MainActivity : Activity() {
     private val projectionRequest = 4102
     private val audioPermissionRequest = 4103
     private val cameraPermissionRequest = 4104
+    private val notificationPermissionRequest = 4105
+    private var overlayRequestAttempted = false
+    private var notificationRequestAttempted = false
     private val serviceType = "_screenmirror._tcp."
 
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()
@@ -126,6 +131,29 @@ class MainActivity : Activity() {
         layout.addView(status)
         scroll.addView(layout, ViewGroup.LayoutParams(-1, -2))
         setContentView(scroll)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (android.os.Build.VERSION.SDK_INT >= 23 && !Settings.canDrawOverlays(this)) {
+            if (!overlayRequestAttempted) {
+                overlayRequestAttempted = true
+                status.text = "Для разрешения отображения поверх других окон откроются специальные настройки Android. Разрешите доступ и вернитесь в приложение."
+                try {
+                    startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
+                    return
+                } catch (_: Exception) {
+                    status.text = "Не удалось открыть настройки разрешения «Поверх других окон». Его можно включить в настройках приложений Android."
+                }
+            } else {
+                status.text = "Доступ «Поверх других окон» не выдан. Его можно включить в настройках ScreenMirror RU. Сама трансляция экрана может работать и без него."
+            }
+        }
+        if (android.os.Build.VERSION.SDK_INT >= 33 && !notificationRequestAttempted &&
+            checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            notificationRequestAttempted = true
+            requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), notificationPermissionRequest)
+        }
     }
 
     private fun discoverReceiver() {
@@ -228,10 +256,9 @@ class MainActivity : Activity() {
         val metrics = android.util.DisplayMetrics()
         @Suppress("DEPRECATION")
         (getSystemService(WINDOW_SERVICE) as android.view.WindowManager).defaultDisplay.getRealMetrics(metrics)
-        val maxDimension = if (quality.selectedItemPosition == 0) 1280 else 1920
-        val scale = minOf(1f, maxDimension.toFloat() / maxOf(metrics.widthPixels, metrics.heightPixels))
-        val width = ((metrics.widthPixels * scale).toInt() / 2) * 2
-        val height = ((metrics.heightPixels * scale).toInt() / 2) * 2
+        // Keep the native display resolution: do not downscale the captured screen.
+        val width = (metrics.widthPixels / 2) * 2
+        val height = (metrics.heightPixels / 2) * 2
         val fps = if (quality.selectedItemPosition == 2) 60 else 30
         val service = Intent(this, MirrorService::class.java).apply {
             putExtra("ip", address.text.toString().trim())
@@ -256,6 +283,10 @@ class MainActivity : Activity() {
                 launchQrScanner()
             } else {
                 status.text = "Без доступа к камере QR-код не отсканировать. Разрешите камеру или подключитесь автоматически."
+            }
+        } else if (requestCode == notificationPermissionRequest) {
+            if (grantResults.firstOrNull() != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                status.text = "Уведомления отключены. Для работы трансляции разрешите уведомления в настройках приложения."
             }
         } else if (requestCode == audioPermissionRequest) {
             if (grantResults.firstOrNull() != android.content.pm.PackageManager.PERMISSION_GRANTED) {
