@@ -13,6 +13,8 @@ import org.webrtc.RendererCommon
 import org.webrtc.SessionDescription
 import org.webrtc.SurfaceViewRenderer
 import org.webrtc.VideoTrack
+import org.webrtc.VideoSink
+import org.webrtc.VideoFrame
 
 class WebRtcReceiverSession(
     context: Context,
@@ -24,6 +26,8 @@ class WebRtcReceiverSession(
     private val factory: PeerConnectionFactory
     private var peer: PeerConnection? = null
     private var remoteVideo: VideoTrack? = null
+    private var remoteSink: VideoSink? = null
+    @Volatile private var firstFrameReceived = false
     private val pendingCandidates = mutableListOf<IceCandidate>()
 
     init {
@@ -79,16 +83,27 @@ class WebRtcReceiverSession(
             override fun onAddTrack(receiver: org.webrtc.RtpReceiver?, streams: Array<out org.webrtc.MediaStream>?) {
                 val track = receiver?.track()
                 if (track is VideoTrack) {
-                    remoteVideo?.removeSink(renderer)
+                    remoteVideo?.let { old -> remoteSink?.let { old.removeSink(it) } }
                     remoteVideo = track
+                    firstFrameReceived = false
                     track.setEnabled(true)
-                    track.addSink(renderer)
-                    onStatus("Видео подключено")
+                    val sink = object : VideoSink {
+                        override fun onFrame(frame: VideoFrame) {
+                            renderer.onFrame(frame)
+                            if (!firstFrameReceived) {
+                                firstFrameReceived = true
+                                onStatus("Первый видеокадр получен — идёт трансляция")
+                            }
+                        }
+                    }
+                    remoteSink = sink
+                    track.addSink(sink)
+                    onStatus("Видеодорожка подключена, ожидаю первый кадр…")
                 }
             }
             override fun onConnectionChange(state: PeerConnection.PeerConnectionState?) {
                 onStatus(when (state) {
-                    PeerConnection.PeerConnectionState.CONNECTED -> "Телефон подключён — идёт трансляция"
+                    PeerConnection.PeerConnectionState.CONNECTED -> "Соединение установлено, ожидаю первый видеокадр…"
                     PeerConnection.PeerConnectionState.CONNECTING -> "Устанавливаем видеосоединение…"
                     PeerConnection.PeerConnectionState.DISCONNECTED -> "Связь потеряна. Ожидание повторного подключения…"
                     PeerConnection.PeerConnectionState.FAILED -> "Не удалось установить соединение"
@@ -120,8 +135,10 @@ class WebRtcReceiverSession(
     }
 
     @Synchronized private fun closePeer(clearCandidates: Boolean = true) {
-        remoteVideo?.removeSink(renderer)
+        remoteVideo?.let { track -> remoteSink?.let { track.removeSink(it) } }
         remoteVideo = null
+        remoteSink = null
+        firstFrameReceived = false
         peer?.close()
         peer?.dispose()
         peer = null
