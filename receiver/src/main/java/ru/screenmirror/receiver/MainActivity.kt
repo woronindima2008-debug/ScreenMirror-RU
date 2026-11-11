@@ -52,14 +52,14 @@ class MainActivity : Activity() {
         }
         header = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
+            gravity = Gravity.CENTER
             setPadding(0, 0, 0, dp(8))
         }
         val logo = ImageView(this).apply { setImageResource(R.drawable.ic_launcher); scaleType = ImageView.ScaleType.FIT_CENTER }
         header.addView(logo, LinearLayout.LayoutParams(dp(54), dp(54)))
-        val brand = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(14), 0, 0, 0) }
-        brand.addView(TextView(this).apply { text = "ScreenMirror RU"; textSize = 24f; setTextColor(Color.WHITE); setTypeface(null, android.graphics.Typeface.BOLD) })
-        brand.addView(TextView(this).apply { text = "Беспроводная трансляция экрана"; textSize = 14f; setTextColor(Color.WHITE) })
+        val brand = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER; setPadding(dp(14), 0, 0, 0) }
+        brand.addView(TextView(this).apply { text = "ScreenMirror RU"; textSize = 24f; gravity = Gravity.CENTER; setTextColor(Color.WHITE); setTypeface(null, android.graphics.Typeface.BOLD) })
+        brand.addView(TextView(this).apply { text = "Беспроводная трансляция экрана"; textSize = 14f; gravity = Gravity.CENTER; setTextColor(Color.WHITE) })
         header.addView(brand, LinearLayout.LayoutParams(0, -2, 1f))
         root.addView(header, LinearLayout.LayoutParams(-1, -2))
 
@@ -69,16 +69,17 @@ class MainActivity : Activity() {
         root.addView(renderer, LinearLayout.LayoutParams(-1, 0, 1f))
 
         footer = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
             setPadding(dp(14), dp(10), dp(14), dp(6))
         }
-        qr = ImageView(this).apply { adjustViewBounds = true; contentDescription = "QR-код для подключения телефона" }
-        footer.addView(qr, LinearLayout.LayoutParams(dp(148), dp(148)))
+        qr = ImageView(this).apply { adjustViewBounds = true; contentDescription = "QR-код для подключения телефона"; scaleType = ImageView.ScaleType.FIT_CENTER }
+        footer.addView(qr, LinearLayout.LayoutParams(dp(220), dp(220)))
         status = TextView(this).apply {
             textSize = 18f
             setTextColor(Color.WHITE)
-            setPadding(dp(20), 0, 0, 0)
+            setPadding(dp(12), dp(10), dp(12), dp(8))
+            gravity = Gravity.CENTER
             text = "Запуск приёмника…"
         }
         footer.addView(status, LinearLayout.LayoutParams(0, -2, 1f))
@@ -89,7 +90,7 @@ class MainActivity : Activity() {
         session = WebRtcReceiverSession(this, egl, renderer, { signaling.sendToPhone(it) }) { message ->
             runOnUiThread {
                 status.text = message
-                val streaming = message.contains("идёт трансляция", true) || message.contains("видео подключено", true)
+                val streaming = message.contains("первый видеокадр получен", true)
                 renderer.visibility = if (streaming) View.VISIBLE else View.INVISIBLE
                 renderer.setBackgroundColor(if (streaming) Color.BLACK else Color.TRANSPARENT)
                 header.visibility = if (streaming) View.GONE else View.VISIBLE
