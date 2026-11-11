@@ -124,7 +124,7 @@ class MainActivity : Activity() {
             setPadding(0, pad, 0, 0)
         }
         layout.addView(status)
-        scroll.addView(layout, ScrollView.LayoutParams(-1, -2))
+        scroll.addView(layout, ViewGroup.LayoutParams(-1, -2))
         setContentView(scroll)
     }
 
