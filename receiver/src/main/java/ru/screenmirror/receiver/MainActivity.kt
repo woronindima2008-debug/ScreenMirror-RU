@@ -104,7 +104,7 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
         val root = FrameLayout(this).apply { setBackgroundColor(Color.BLACK); clipChildren = true }
         rootLayout = root
         backgroundView = ImageView(this@MainActivity).apply {
-            setImageResource(R.drawable.tv_pairing_bg)
+            setImageResource(R.drawable.cosmic_background)
             scaleType = ImageView.ScaleType.CENTER_CROP
             contentDescription = "Фон DmitryTranslation"
         }
