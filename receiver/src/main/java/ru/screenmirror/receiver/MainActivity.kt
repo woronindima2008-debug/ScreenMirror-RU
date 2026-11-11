@@ -100,7 +100,7 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         val root = FrameLayout(this).apply { setBackgroundColor(Color.BLACK); clipChildren = true }
         rootLayout = root
-        backgroundView = ImageView(this).apply {
+        backgroundView = ImageView(this@MainActivity).apply {
             setImageResource(R.drawable.cosmic_background)
             scaleType = ImageView.ScaleType.CENTER_CROP
             contentDescription = "Фон DmitryTranslation"
@@ -110,7 +110,7 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
         root.addView(backgroundShade, FrameLayout.LayoutParams(-1, -1))
         surfaceView = SurfaceView(this).apply { visibility = View.GONE }
         root.addView(surfaceView, FrameLayout.LayoutParams(-1, -1))
-        pausedLayer = TextView(this).apply {
+        pausedLayer = TextView(this@MainActivity).apply {
             text = "Передача приостановлена"
             textSize = 25f
             gravity = Gravity.CENTER
@@ -119,8 +119,8 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
             visibility = View.GONE
         }
         root.addView(pausedLayer, FrameLayout.LayoutParams(-1, -1))
-        qrView = ImageView(this).apply { scaleType = ImageView.ScaleType.FIT_CENTER; setPadding(14, 14, 14, 14); setBackgroundColor(Color.WHITE) }
-        status = TextView(this).apply {
+        qrView = ImageView(this@MainActivity).apply { scaleType = ImageView.ScaleType.FIT_CENTER; setPadding(14, 14, 14, 14); setBackgroundColor(Color.WHITE) }
+        status = TextView(this@MainActivity).apply {
             text = "DmitryTranslation\nОжидание подключения телефона…"
             textSize = 16f
             gravity = Gravity.CENTER
@@ -132,7 +132,7 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
             setShadowLayer(0f, 0f, 0f, Color.TRANSPARENT)
             setBackgroundColor(Color.TRANSPARENT)
         }
-        val info = TextView(this).apply {
+        val info = TextView(this@MainActivity).apply {
             text = "ОТСКАНИРУЙТЕ QR-КОД НА ТЕЛЕФОНЕ\nОба устройства должны быть в одной сети Wi-Fi"
             textSize = 14f
             gravity = Gravity.CENTER
@@ -147,12 +147,12 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
         val column = android.widget.LinearLayout(this).apply {
             orientation = android.widget.LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            addView(ImageView(this).apply {
+            addView(ImageView(this@MainActivity).apply {
                 setImageResource(R.mipmap.ic_launcher)
                 scaleType = ImageView.ScaleType.FIT_CENTER
                 contentDescription = "Эмблема DmitryTranslation"
             }, android.widget.LinearLayout.LayoutParams(76, 76))
-            addView(TextView(this).apply {
+            addView(TextView(this@MainActivity).apply {
                 text = "DmitryTranslation"
                 textSize = 28f
                 gravity = Gravity.CENTER
@@ -160,7 +160,7 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
                 setTypeface(null, android.graphics.Typeface.BOLD)
                 setShadowLayer(14f, 0f, 0f, 0xFF398DFF.toInt())
             }, android.widget.LinearLayout.LayoutParams(-1, -2))
-            addView(TextView(this).apply {
+            addView(TextView(this@MainActivity).apply {
                 text = "КОСМИЧЕСКАЯ СТАНЦИЯ  •  БЕСПРОВОДНОЕ ПОДКЛЮЧЕНИЕ"
                 textSize = 13f
                 gravity = Gravity.CENTER
