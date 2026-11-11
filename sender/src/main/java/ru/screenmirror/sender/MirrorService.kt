@@ -349,7 +349,8 @@ class MirrorService : Service() {
     }
     private fun createBestEncoder(sourceWidth: Int, sourceHeight: Int, refreshRate: Float): Pair<MediaCodec, Pair<Int, Int>> {
         val codecList = MediaCodecList(MediaCodecList.REGULAR_CODECS)
-        val bounds = listOf(1920 to 1080, 1280 to 720)
+        // Automatically step down only when the phone encoder cannot sustain a higher mode.
+        val bounds = listOf(1920 to 1080, 1600 to 900, 1280 to 720, 960 to 540, 640 to 360)
         val fpsOptions = if (refreshRate >= 55f) listOf(60, 30) else listOf(30)
         for ((maxW, maxH) in bounds) {
             val scale = minOf(1f, maxW.toFloat() / sourceWidth, maxH.toFloat() / sourceHeight)
@@ -366,7 +367,10 @@ class MirrorService : Service() {
                 val pixels = width.toLong() * height
                 val bitrate = when {
                     pixels >= 1920L * 1080L -> 8_000_000
-                    else -> 5_000_000
+                    pixels >= 1600L * 900L -> 6_000_000
+                    pixels >= 1280L * 720L -> 4_500_000
+                    pixels >= 960L * 540L -> 2_500_000
+                    else -> 1_500_000
                 }
                 val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, width, height).apply {
                     setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)
