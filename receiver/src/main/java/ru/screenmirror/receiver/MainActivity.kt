@@ -82,7 +82,7 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER
             text = "Запуск приёмника…"
         }
-        footer.addView(status, LinearLayout.LayoutParams(0, -2, 1f))
+        footer.addView(status, LinearLayout.LayoutParams(-1, -2))
         root.addView(footer, LinearLayout.LayoutParams(-1, -2))
         setContentView(root)
 
