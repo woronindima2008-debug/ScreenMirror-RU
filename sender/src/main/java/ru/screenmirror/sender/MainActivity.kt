@@ -38,7 +38,7 @@ class MainActivity : Activity() {
         layout.addView(TextView(this).apply {
             text = "✦ DmitryTranslation"
             textSize = 28f
-            setTextColor(android.graphics.Color.WHITE)
+            setTextColor(0xFFFFE8D5.toInt())
             setTypeface(null, android.graphics.Typeface.BOLD)
             gravity = Gravity.CENTER
         }, ViewGroup.LayoutParams(-1, -2))
@@ -46,13 +46,13 @@ class MainActivity : Activity() {
             text = "КОСМИЧЕСКАЯ СТАНЦИЯ  •  БЕСПРОВОДНАЯ ПЕРЕДАЧА"
             textSize = 14f
             gravity = Gravity.CENTER
-            setTextColor(0xFFD8E8FF.toInt())
+            setTextColor(0xFFFFA24A.toInt())
             setPadding(0, pad, 0, pad)
         })
         address = EditText(this).apply {
             setTextColor(android.graphics.Color.WHITE)
-            setHintTextColor(0xFFB7C9E8.toInt())
-            setBackgroundTintList(android.content.res.ColorStateList.valueOf(0xFF69B8FF.toInt()))
+            setHintTextColor(0xFFD6B58F.toInt())
+            setBackgroundTintList(android.content.res.ColorStateList.valueOf(0xFFFF8A2B.toInt()))
             hint = "IP-адрес телевизора"
             setSingleLine(true)
             inputType = android.text.InputType.TYPE_CLASS_TEXT
@@ -98,7 +98,7 @@ class MainActivity : Activity() {
             scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
         }
         root.addView(backdrop, android.widget.FrameLayout.LayoutParams(-1, -1))
-        root.addView(android.view.View(this).apply { setBackgroundColor(0x66030A18) }, android.widget.FrameLayout.LayoutParams(-1, -1))
+        root.addView(android.view.View(this).apply { setBackgroundColor(0x99000000.toInt()) }, android.widget.FrameLayout.LayoutParams(-1, -1))
         root.addView(layout, android.widget.FrameLayout.LayoutParams(-1, -1))
         setContentView(root)
     }
