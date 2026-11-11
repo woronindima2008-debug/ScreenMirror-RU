@@ -61,7 +61,9 @@ class WebRtcReceiverSession(
         val earlyCandidates = pendingCandidates.toList()
         closePeer(clearCandidates = true)
         pendingCandidates.addAll(earlyCandidates)
-        val config = PeerConnection.RTCConfiguration(emptyList())
+        val config = PeerConnection.RTCConfiguration(listOf(
+            PeerConnection.IceServer.builder("stun:stun.l.google.com:19302").createIceServer()
+        ))
         peer = factory.createPeerConnection(config, object : PeerConnection.Observer {
             override fun onSignalingChange(state: PeerConnection.SignalingState?) {}
             override fun onIceConnectionChange(state: PeerConnection.IceConnectionState?) {}
