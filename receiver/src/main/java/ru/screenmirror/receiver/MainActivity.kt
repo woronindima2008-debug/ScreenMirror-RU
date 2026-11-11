@@ -50,6 +50,9 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
     private val surfaceLock = java.lang.Object()
     private var nsdManager: NsdManager? = null
     private var registration: NsdManager.RegistrationListener? = null
+    // Keep the window-scoped display preference so the TV output mode can be restored after mirroring.
+    private var originalPreferredDisplayModeId: Int? = null
+    private var requestedDisplayModeId: Int? = null
 
 
     @Volatile private var streamActive = false
@@ -221,6 +224,66 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) { renderSurface = holder.surface }
     override fun surfaceDestroyed(holder: SurfaceHolder) { renderSurface = null }
 
+    /** Request the highest TV mode that can display the incoming stream, preferring ~60 Hz.
+     * This is a window-level hint; Android/firmware may ignore it. No global display settings are changed.
+     */
+    private fun applyOptimalDisplayMode(videoWidth: Int, videoHeight: Int) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
+        val ready = java.util.concurrent.CountDownLatch(1)
+        runOnUiThread {
+            try {
+                val display = windowManager.defaultDisplay
+                val modes = display.supportedModes
+                if (modes.isNullOrEmpty()) return@runOnUiThread
+                if (originalPreferredDisplayModeId == null) {
+                    originalPreferredDisplayModeId = window.attributes.preferredDisplayModeId
+                }
+                val streamPixels = videoWidth.toLong() * videoHeight.toLong()
+                val largestPixels = modes.maxOf { it.physicalWidth.toLong() * it.physicalHeight.toLong() }
+                val targetPixels = if (largestPixels >= streamPixels) {
+                    modes.filter { it.physicalWidth.toLong() * it.physicalHeight.toLong() >= streamPixels }
+                        .maxOf { it.physicalWidth.toLong() * it.physicalHeight.toLong() }
+                } else largestPixels
+                val candidates = modes.filter {
+                    it.physicalWidth.toLong() * it.physicalHeight.toLong() == targetPixels
+                }
+                val selected = candidates.minByOrNull { kotlin.math.abs(it.refreshRate - 60f) } ?: return@runOnUiThread
+                requestedDisplayModeId = selected.modeId
+                val attributes = window.attributes
+                if (attributes.preferredDisplayModeId != selected.modeId) {
+                    attributes.preferredDisplayModeId = selected.modeId
+                    window.attributes = attributes
+                }
+                android.util.Log.i("DmitryTranslation", "Display modes: " + modes.joinToString { "${it.physicalWidth}x${it.physicalHeight}@${it.refreshRate}Hz(id=${it.modeId})" })
+                android.util.Log.i("DmitryTranslation", "Requested TV display mode ${selected.physicalWidth}x${selected.physicalHeight}@${selected.refreshRate}Hz for stream ${videoWidth}x${videoHeight}")
+            } catch (e: Exception) {
+                android.util.Log.w("DmitryTranslation", "Automatic TV display mode selection unavailable; keeping current mode", e)
+            } finally {
+                ready.countDown()
+            }
+        }
+        try { ready.await(3, java.util.concurrent.TimeUnit.SECONDS) } catch (_: InterruptedException) { Thread.currentThread().interrupt() }
+    }
+
+    /** Restore only this Activity window's previous preference; never write global display settings. */
+    private fun restorePreferredDisplayMode() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
+        val original = originalPreferredDisplayModeId ?: return
+        try {
+            val attributes = window.attributes
+            if (attributes.preferredDisplayModeId != original) {
+                attributes.preferredDisplayModeId = original
+                window.attributes = attributes
+            }
+            android.util.Log.i("DmitryTranslation", "Restored original TV display mode preference: $original")
+        } catch (e: Exception) {
+            android.util.Log.w("DmitryTranslation", "Could not restore original TV display mode preference", e)
+        } finally {
+            originalPreferredDisplayModeId = null
+            requestedDisplayModeId = null
+        }
+    }
+
     private fun fitSurfaceToAspect(videoWidth: Int, videoHeight: Int) {
         val ready = java.util.concurrent.CountDownLatch(1)
         runOnUiThread {
@@ -305,6 +368,7 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
                 val width = input.readInt()
                 val height = input.readInt()
                 require(width in 2..3840 && height in 2..2160)
+                applyOptimalDisplayMode(width, height)
                 val sps = readPacket(input)
                 val pps = readPacket(input)
                 fitSurfaceToAspect(width, height)
@@ -350,6 +414,7 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
                 }
             } finally {
                 streamActive = false
+                runOnUiThread { restorePreferredDisplayMode() }
                 try { codec?.stop() } catch (_: Exception) {}
                 try { codec?.release() } catch (_: Exception) {}
                 if (decoder === codec) decoder = null
@@ -444,6 +509,7 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
     }
 
     override fun onDestroy() {
+        restorePreferredDisplayMode()
         alive.set(false)
         synchronized(surfaceLock) { surfaceLock.notifyAll() }
         try { server?.close(); controlServer?.close(); audioServer?.close() } catch (_: Exception) {}
