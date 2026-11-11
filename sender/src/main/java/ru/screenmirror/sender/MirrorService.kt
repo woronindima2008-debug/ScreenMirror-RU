@@ -87,12 +87,12 @@ class MirrorService : Service() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(8, 8, 8, 8)
-            background = android.graphics.drawable.GradientDrawable().apply { cornerRadius = 22f; setColor(0xF20A1426.toInt()); setStroke(2, 0xFF4B91D8.toInt()) }
+            background = android.graphics.drawable.GradientDrawable().apply { cornerRadius = 22f; setColor(0xF2081020.toInt()); setStroke(2, 0xFF5AB7FF.toInt()) }
         }
-        val head = Button(this).apply { text = "✦  DmitryTranslation  ⋮"; setTextColor(Color.WHITE); background = android.graphics.drawable.GradientDrawable().apply { cornerRadius = 16f; setColor(0xFF153B68.toInt()); setStroke(1, 0xFF68B9FF.toInt()) } }
-        val sound = Button(this).apply { text = "♫ Звук: ВКЛ"; setTextColor(Color.WHITE); backgroundTintList = android.content.res.ColorStateList.valueOf(0xFF17466D.toInt()) }
-        val picture = Button(this).apply { text = "▣ Изображение: ВКЛ"; setTextColor(Color.WHITE); backgroundTintList = android.content.res.ColorStateList.valueOf(0xFF17466D.toInt()) }
-        val finish = Button(this).apply { text = "Завершить трансляцию"; setTextColor(Color.WHITE); backgroundTintList = android.content.res.ColorStateList.valueOf(0xFF7D2942.toInt()) }
+        val head = Button(this).apply { text = "✦  КОСМИЧЕСКАЯ СТАНЦИЯ  ⋮"; setTextColor(0xFFF1F7FF.toInt()); textSize = 12f; background = android.graphics.drawable.GradientDrawable().apply { cornerRadius = 16f; setColor(0xFF102A4A.toInt()); setStroke(1, 0xFF5AB7FF.toInt()) } }
+        val sound = Button(this).apply { text = "◖))  Звук: ВКЛ"; setTextColor(0xFFEAF4FF.toInt()); backgroundTintList = android.content.res.ColorStateList.valueOf(0xFF183B5C.toInt()) }
+        val picture = Button(this).apply { text = "▣  Изображение: ВКЛ"; setTextColor(0xFFEAF4FF.toInt()); backgroundTintList = android.content.res.ColorStateList.valueOf(0xFF183B5C.toInt()) }
+        val finish = Button(this).apply { text = "⏻  Завершить трансляцию"; setTextColor(0xFFFFEAF0.toInt()); backgroundTintList = android.content.res.ColorStateList.valueOf(0xFF67283B.toInt()) }
         sound.setOnClickListener {
             audioEnabled = !audioEnabled
             sound.text = if (audioEnabled) "♫ Звук: ВКЛ" else "♫ Звук: ВЫКЛ"
@@ -111,7 +111,7 @@ class MirrorService : Service() {
             sound.visibility = if (compact) View.GONE else View.VISIBLE
             picture.visibility = if (compact) View.GONE else View.VISIBLE
             finish.visibility = if (compact) View.GONE else View.VISIBLE
-            head.text = if (compact) "SM  •  Развернуть" else "DmitryTranslation  ⋮"
+            head.text = if (compact) "✦  Развернуть панель" else "✦  КОСМИЧЕСКАЯ СТАНЦИЯ  ⋮"
         }
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.WRAP_CONTENT,
