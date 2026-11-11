@@ -101,7 +101,7 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
         val root = FrameLayout(this).apply { setBackgroundColor(Color.BLACK); clipChildren = true }
         rootLayout = root
         backgroundView = ImageView(this@MainActivity).apply {
-            setImageResource(R.drawable.cosmic_background)
+            setImageResource(R.drawable.tv_pairing_bg)
             scaleType = ImageView.ScaleType.CENTER_CROP
             contentDescription = "Фон DmitryTranslation"
         }
@@ -227,22 +227,12 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
             try {
                 val screenWidth = rootLayout.width.takeIf { it > 0 } ?: resources.displayMetrics.widthPixels
                 val screenHeight = rootLayout.height.takeIf { it > 0 } ?: resources.displayMetrics.heightPixels
-                val fitScale = minOf(
+                // Fit the complete phone frame inside the TV screen. Keep the source aspect ratio;
+                // the root background is black, so only the smallest required letterbox bars remain.
+                val scale = minOf(
                     screenWidth.toFloat() / videoWidth.toFloat(),
                     screenHeight.toFloat() / videoHeight.toFloat()
                 )
-                val fillScale = maxOf(
-                    screenWidth.toFloat() / videoWidth.toFloat(),
-                    screenHeight.toFloat() / videoHeight.toFloat()
-                )
-                val fillWidth = videoWidth * fillScale
-                val fillHeight = videoHeight * fillScale
-                val cropX = 1f - screenWidth.toFloat() / fillWidth
-                val cropY = 1f - screenHeight.toFloat() / fillHeight
-                // Fill the TV for both landscape and portrait sources without distorting geometry.
-                // This uses a centered proportional crop when aspect ratios differ; it avoids side bars
-                // while keeping text and UI elements sharp rather than stretching them non-uniformly.
-                val scale = fillScale
                 val fittedWidth = (videoWidth * scale).toInt().coerceAtLeast(2)
                 val fittedHeight = (videoHeight * scale).toInt().coerceAtLeast(2)
                 surfaceView.holder.setFixedSize(videoWidth, videoHeight)
