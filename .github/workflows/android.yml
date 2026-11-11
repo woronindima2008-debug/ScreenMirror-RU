@@ -2,7 +2,7 @@ name: Android APK
 
 on:
   push:
-    branches: [ main, feature/webrtc-p2p ]
+    branches: [ main, feature/webrtc-p2p, fix/restore-cosmic-ui ]
   pull_request:
     branches: [ main ]
   workflow_dispatch:
