@@ -96,50 +96,37 @@ class MirrorService : Service() {
                 minHeight = dp(height)
                 isClickable = true
                 isFocusable = true
-                background = android.graphics.drawable.GradientDrawable().apply {
-                    cornerRadius = dp(14).toFloat()
-                    setColor(fill)
-                    setStroke(dp(1).coerceAtLeast(1), stroke)
-                }
+                background = android.graphics.drawable.ColorDrawable(fill)
             }
         fun actionBackground(view: TextView, fill: Int, stroke: Int) {
-            view.background = android.graphics.drawable.GradientDrawable().apply {
-                cornerRadius = dp(14).toFloat()
-                setColor(fill)
-                setStroke(dp(1).coerceAtLeast(1), stroke)
-            }
+            view.background = android.graphics.drawable.ColorDrawable(fill)
         }
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(10), dp(10), dp(10), dp(10))
-            background = android.graphics.drawable.GradientDrawable().apply {
-                cornerRadius = dp(22).toFloat()
-                setColor(0xE9080B16.toInt())
-                setStroke(dp(2), 0xFFFF6A22.toInt())
-            }
+            setBackgroundColor(0xFF080604.toInt())
             elevation = dp(12).toFloat()
-            clipToOutline = true
-            setBackgroundResource(R.drawable.panel_cosmic_fire)
+            clipToOutline = false
         }
         fun addPanelRow(view: View) {
             root.addView(view, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(8) })
         }
 
-        val head = panelText("✦  КОСМИЧЕСКАЯ СТАНЦИЯ  ⋮", 0x660A0D16.toInt(), 0xFFFF7A2D.toInt(), 0xFFFFF5EE.toInt(), 46)
-        val sound = panelText("♫  Звук: ВКЛ", 0x99060912.toInt(), 0xFFFF8A3D.toInt(), 0xFFFFF5EE.toInt())
-        val picture = panelText("▣  Изображение: ВКЛ", 0x99060912.toInt(), 0xFFFF8A3D.toInt(), 0xFFFFF5EE.toInt())
-        val finish = panelText("⏻  Завершить трансляцию", 0xAA210B0A.toInt(), 0xFFFF6238.toInt(), 0xFFFFEAE3.toInt())
+        val head = panelText("DmitryTranslation  ⋮", 0xFF15100B.toInt(), 0xFFFF7A2D.toInt(), 0xFFFFA24A.toInt(), 46)
+        val sound = panelText("Звук: ВКЛ", 0xFF17110B.toInt(), 0xFFFF8A3D.toInt(), 0xFFFFE8D5.toInt())
+        val picture = panelText("Изображение: ВКЛ", 0xFF17110B.toInt(), 0xFFFF8A3D.toInt(), 0xFFFFE8D5.toInt())
+        val finish = panelText("Завершить трансляцию", 0xFF211008.toInt(), 0xFFFF7A24.toInt(), 0xFFFFC18A.toInt())
         sound.setOnClickListener {
             audioEnabled = !audioEnabled
-            sound.text = if (audioEnabled) "♫  Звук: ВКЛ" else "♫  Звук: ВЫКЛ"
+            sound.text = if (audioEnabled) "Звук: ВКЛ" else "Звук: ВЫКЛ"
             actionBackground(sound, if (audioEnabled) 0x99060912.toInt() else 0xAA210B0A.toInt(),
                 if (audioEnabled) 0xFFFF8A3D.toInt() else 0xFFFF6238.toInt())
             sendControl(if (audioEnabled) 2 else 3)
         }
         picture.setOnClickListener {
             videoEnabled = !videoEnabled
-            picture.text = if (videoEnabled) "▣  Изображение: ВКЛ" else "▣  Изображение: ВЫКЛ"
+            picture.text = if (videoEnabled) "Изображение: ВКЛ" else "Изображение: ВЫКЛ"
             actionBackground(picture, if (videoEnabled) 0x99060912.toInt() else 0xAA210B0A.toInt(),
                 if (videoEnabled) 0xFFFF8A3D.toInt() else 0xFFFF6238.toInt())
             sendControl(if (videoEnabled) 4 else 5)
@@ -156,7 +143,20 @@ class MirrorService : Service() {
             sound.visibility = if (compact) View.GONE else View.VISIBLE
             picture.visibility = if (compact) View.GONE else View.VISIBLE
             finish.visibility = if (compact) View.GONE else View.VISIBLE
-            head.text = if (compact) "✦  Развернуть панель" else "✦  КОСМИЧЕСКАЯ СТАНЦИЯ  ⋮"
+            if (compact) {
+                root.setPadding(0, 0, 0, 0)
+                head.text = "D"
+                head.textSize = 20f
+                head.setPadding(0, 0, 0, 0)
+                head.layoutParams = LinearLayout.LayoutParams(dp(44), dp(44))
+            } else {
+                root.setPadding(dp(10), dp(10), dp(10), dp(10))
+                head.text = "DmitryTranslation  ⋮"
+                head.textSize = 14f
+                head.setPadding(dp(14), dp(8), dp(14), dp(8))
+                head.layoutParams = LinearLayout.LayoutParams(-1, dp(46)).apply { bottomMargin = dp(8) }
+            }
+            root.requestLayout()
         }
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.WRAP_CONTENT,
