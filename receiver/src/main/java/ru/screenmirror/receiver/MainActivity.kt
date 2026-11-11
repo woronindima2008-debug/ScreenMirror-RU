@@ -109,7 +109,7 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
             contentDescription = "Фон DmitryTranslation"
         }
         root.addView(backgroundView, FrameLayout.LayoutParams(-1, -1))
-        backgroundShade = View(this).apply { setBackgroundColor(0x33030A18) }
+        backgroundShade = View(this).apply { setBackgroundColor(0x55000000) }
         root.addView(backgroundShade, FrameLayout.LayoutParams(-1, -1))
         surfaceView = SurfaceView(this).apply { visibility = View.GONE }
         root.addView(surfaceView, FrameLayout.LayoutParams(-1, -1))
@@ -117,18 +117,18 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
             text = "Передача приостановлена"
             textSize = 25f
             gravity = Gravity.CENTER
-            setTextColor(Color.WHITE)
-            setBackgroundColor(0xFF080B12.toInt())
+            setTextColor(0xFFFFA24A.toInt())
+            setBackgroundColor(0xFF080604.toInt())
             visibility = View.GONE
         }
         root.addView(pausedLayer, FrameLayout.LayoutParams(-1, -1))
-        qrView = ImageView(this@MainActivity).apply { scaleType = ImageView.ScaleType.FIT_CENTER; setPadding(14, 14, 14, 14); setBackgroundColor(Color.WHITE) }
+        qrView = ImageView(this@MainActivity).apply { scaleType = ImageView.ScaleType.FIT_CENTER; setPadding(14, 14, 14, 14); background = android.graphics.drawable.GradientDrawable().apply { setColor(Color.WHITE); setStroke(4, 0xFFFF8A2B.toInt()) } }
         status = TextView(this@MainActivity).apply {
             text = "DmitryTranslation\nОжидание подключения телефона…"
             textSize = 16f
             gravity = Gravity.CENTER
             includeFontPadding = false
-            setTextColor(0xFFEAF0FA.toInt())
+            setTextColor(0xFFFFE8D5.toInt())
             setPadding(24, 12, 24, 12)
             maxLines = 2
             ellipsize = android.text.TextUtils.TruncateAt.END
@@ -159,15 +159,15 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
                 text = "DmitryTranslation"
                 textSize = 28f
                 gravity = Gravity.CENTER
-                setTextColor(0xFFF4F8FF.toInt())
+                setTextColor(0xFFFFE8D5.toInt())
                 setTypeface(null, android.graphics.Typeface.BOLD)
-                setShadowLayer(14f, 0f, 0f, 0xFF398DFF.toInt())
+                setShadowLayer(14f, 0f, 0f, 0xFFFF7A24.toInt())
             }, android.widget.LinearLayout.LayoutParams(-1, -2))
             addView(TextView(this@MainActivity).apply {
                 text = "КОСМИЧЕСКАЯ СТАНЦИЯ  •  БЕСПРОВОДНОЕ ПОДКЛЮЧЕНИЕ"
                 textSize = 13f
                 gravity = Gravity.CENTER
-                setTextColor(0xFFBBD7FF.toInt())
+                setTextColor(0xFFFFA24A.toInt())
                 setPadding(0, 4, 0, 12)
             }, android.widget.LinearLayout.LayoutParams(-1, -2))
             addView(qrView, android.widget.LinearLayout.LayoutParams(260, 260))
