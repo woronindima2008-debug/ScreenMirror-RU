@@ -94,7 +94,7 @@ class MainActivity : Activity() {
         layout.addView(status)
         val root = android.widget.FrameLayout(this)
         val backdrop = android.widget.ImageView(this).apply {
-            setImageResource(R.drawable.cosmic_background)
+            setImageResource(R.drawable.bg_pairing)
             scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
         }
         root.addView(backdrop, android.widget.FrameLayout.LayoutParams(-1, -1))
