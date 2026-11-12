@@ -81,7 +81,7 @@ class MainActivity : Activity() {
         layout.addView(emberButton("Начать трансляцию") {
                 if (address.text.toString().trim().isBlank()) {
                     status.text = "Укажите IP или найдите телевизор автоматически"
-                    return@setOnClickListener
+                    return@emberButton
                 }
                 if (!Settings.canDrawOverlays(this@MainActivity)) {
                     startActivityForResult(
