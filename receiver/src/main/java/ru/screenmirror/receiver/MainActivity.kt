@@ -101,7 +101,7 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
         super.onCreate(savedInstanceState)
         window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        val root = FrameLayout(this).apply { setBackgroundColor(Color.BLACK); clipChildren = true }
+        val root = FrameLayout(this).apply { setBackgroundColor(0xFF080503.toInt()); clipChildren = true }
         rootLayout = root
         backgroundView = ImageView(this@MainActivity).apply {
             setImageResource(R.drawable.cosmic_background)
@@ -122,7 +122,7 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
             visibility = View.GONE
         }
         root.addView(pausedLayer, FrameLayout.LayoutParams(-1, -1))
-        qrView = ImageView(this@MainActivity).apply { scaleType = ImageView.ScaleType.FIT_CENTER; setPadding(14, 14, 14, 14); background = android.graphics.drawable.GradientDrawable().apply { setColor(0xFFFFC15A.toInt()); setStroke(4, 0xFFFF5A1F.toInt()); cornerRadius = 18f } }
+        qrView = ImageView(this@MainActivity).apply { scaleType = ImageView.ScaleType.FIT_CENTER; setPadding(14, 14, 14, 14); background = android.graphics.drawable.GradientDrawable(android.graphics.drawable.GradientDrawable.Orientation.TL_BR, intArrayOf(0xFFFFD078.toInt(), 0xFFFFA62E.toInt(), 0xFFFF7A1D.toInt())).apply { setStroke(4, 0xFFFF5A1F.toInt()); cornerRadius = 18f } }
         status = TextView(this@MainActivity).apply {
             text = "DmitryTranslation\nОжидание подключения телефона…"
             textSize = 16f
@@ -140,7 +140,7 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
             textSize = 14f
             gravity = Gravity.CENTER
             includeFontPadding = false
-            setTextColor(0xFFEAF0FA.toInt())
+            setTextColor(0xFFFFD5A7.toInt())
             setPadding(20, 10, 20, 10)
             maxLines = 2
             ellipsize = android.text.TextUtils.TruncateAt.END
@@ -173,8 +173,11 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
             addView(qrView, android.widget.LinearLayout.LayoutParams(260, 260))
             addView(info, android.widget.LinearLayout.LayoutParams(-1, -2))
         }
+        column.background = android.graphics.drawable.GradientDrawable(android.graphics.drawable.GradientDrawable.Orientation.TL_BR, intArrayOf(0xE82B1008.toInt(), 0xE90F0805.toInt(), 0xE8250C05.toInt())).apply { cornerRadius = 28f * resources.displayMetrics.density; setStroke((2f * resources.displayMetrics.density).toInt(), 0xFFFF6826.toInt()) }
+        column.setPadding(22, 20, 22, 20)
+        column.elevation = 18f * resources.displayMetrics.density
         pairingPanel = column
-        root.addView(column, FrameLayout.LayoutParams(-1, -2, Gravity.CENTER))
+        root.addView(column, FrameLayout.LayoutParams(-1, -2, Gravity.CENTER).apply { leftMargin = 24; rightMargin = 24 })
         root.addView(status, FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM).apply { leftMargin = 24; rightMargin = 24; bottomMargin = 52 })
         setContentView(root)
         surfaceView.holder.addCallback(this)
