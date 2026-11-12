@@ -96,16 +96,16 @@ class MirrorService : Service() {
                 minHeight = dp(height)
                 isClickable = true
                 isFocusable = true
-                background = android.graphics.drawable.ColorDrawable(fill)
+                background = android.graphics.drawable.GradientDrawable(android.graphics.drawable.GradientDrawable.Orientation.TL_BR, intArrayOf(0xFF321307.toInt(), fill, 0xFF100805.toInt())).apply { cornerRadius = dp(13).toFloat(); setStroke(dp(2), stroke) }
             }
         fun actionBackground(view: TextView, fill: Int, stroke: Int) {
-            view.background = android.graphics.drawable.ColorDrawable(fill)
+            view.background = android.graphics.drawable.GradientDrawable(android.graphics.drawable.GradientDrawable.Orientation.TL_BR, intArrayOf(0xFF321307.toInt(), fill, 0xFF100805.toInt())).apply { cornerRadius = dp(13).toFloat(); setStroke(dp(2), stroke) }
         }
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(10), dp(10), dp(10), dp(10))
-            setBackgroundColor(0xFF080604.toInt())
+            background = android.graphics.drawable.GradientDrawable(android.graphics.drawable.GradientDrawable.Orientation.TL_BR, intArrayOf(0xF52A1008.toInt(), 0xF5100805.toInt(), 0xF5260D06.toInt())).apply { cornerRadius = dp(22).toFloat(); setStroke(dp(2), 0xFFFF6A25.toInt()) }
             elevation = dp(12).toFloat()
             clipToOutline = false
         }
