@@ -122,7 +122,7 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
             visibility = View.GONE
         }
         root.addView(pausedLayer, FrameLayout.LayoutParams(-1, -1))
-        qrView = ImageView(this@MainActivity).apply { scaleType = ImageView.ScaleType.FIT_CENTER; setPadding(14, 14, 14, 14); background = android.graphics.drawable.GradientDrawable().apply { setColor(Color.WHITE); setStroke(4, 0xFFFF8A2B.toInt()) } }
+        qrView = ImageView(this@MainActivity).apply { scaleType = ImageView.ScaleType.FIT_CENTER; setPadding(14, 14, 14, 14); background = android.graphics.drawable.GradientDrawable().apply { setColor(0xFFFFC15A.toInt()); setStroke(4, 0xFFFF5A1F.toInt()); cornerRadius = 18f } }
         status = TextView(this@MainActivity).apply {
             text = "DmitryTranslation\nОжидание подключения телефона…"
             textSize = 16f
@@ -206,7 +206,7 @@ class MainActivity : Activity(), SurfaceHolder.Callback {
             try {
                 val matrix = MultiFormatWriter().encode("screenmirror://$ip:8988", BarcodeFormat.QR_CODE, 420, 420)
                 val pixels = IntArray(420 * 420)
-                for (y in 0 until 420) for (x in 0 until 420) pixels[y * 420 + x] = if (matrix[x, y]) Color.BLACK else Color.WHITE
+                for (y in 0 until 420) for (x in 0 until 420) pixels[y * 420 + x] = if (matrix[x, y]) 0xFF451006.toInt() else 0xFFFFC15A.toInt()
                 qrView.setImageBitmap(Bitmap.createBitmap(pixels, 420, 420, Bitmap.Config.ARGB_8888))
                 status.text = "DmitryTranslation\nАдрес телевизора: $ip"
             } catch (e: Exception) { android.util.Log.w("DmitryTranslation", "QR generation failed", e) }
