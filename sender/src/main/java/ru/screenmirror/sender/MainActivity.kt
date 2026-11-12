@@ -30,10 +30,22 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val pad = (20 * resources.displayMetrics.density).toInt()
+        fun emberSurface(radius: Float = 18f, fill: Int = 0xEE160A06.toInt()) = android.graphics.drawable.GradientDrawable(
+            android.graphics.drawable.GradientDrawable.Orientation.TL_BR,
+            intArrayOf(0xF52A1008.toInt(), fill, 0xF5090706.toInt())
+        ).apply { cornerRadius = radius * resources.displayMetrics.density; setStroke((1.5f * resources.displayMetrics.density).toInt(), 0xFFFF6A25.toInt()) }
+        fun emberButton(label: String, action: () -> Unit) = Button(this).apply {
+            text = label; setTextColor(0xFFFFE2BF.toInt()); textSize = 15f
+            background = emberSurface(14f, 0xFF281006.toInt()); isAllCaps = false
+            setPadding(pad, pad / 2, pad, pad / 2); elevation = 5f
+            setOnClickListener { action() }
+        }
         val layout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
             setPadding(pad, pad, pad, pad)
+            background = emberSurface(24f, 0xEE120905.toInt())
+            elevation = 12f
         }
         layout.addView(TextView(this).apply {
             text = "✦ DmitryTranslation"
@@ -50,30 +62,23 @@ class MainActivity : Activity() {
             setPadding(0, pad, 0, pad)
         })
         address = EditText(this).apply {
-            setTextColor(android.graphics.Color.WHITE)
-            setHintTextColor(0xFFD6B58F.toInt())
-            setBackgroundTintList(android.content.res.ColorStateList.valueOf(0xFFFF8A2B.toInt()))
+            setTextColor(0xFFFFE8D5.toInt())
+            setHintTextColor(0xFFD6A477.toInt())
+            background = emberSurface(12f, 0xFF1B0D07.toInt())
+            setPadding(pad / 2, pad / 2, pad / 2, pad / 2)
             hint = "IP-адрес телевизора"
             setSingleLine(true)
             inputType = android.text.InputType.TYPE_CLASS_TEXT
         }
         layout.addView(address, ViewGroup.LayoutParams(-1, -2))
-        layout.addView(Button(this).apply {
-            text = "Найти телевизор автоматически"
-            setOnClickListener { discoverTv() }
-        })
-        layout.addView(Button(this).apply {
-            text = "Сканировать QR-код"
-            setOnClickListener {
+        layout.addView(emberButton("Найти телевизор автоматически") { discoverTv() }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = pad / 2 })
+        layout.addView(emberButton("Сканировать QR-код") {
                 IntentIntegrator(this@MainActivity)
                     .setPrompt("Наведите камеру на QR-код DmitryTranslation на телевизоре")
                     .setBeepEnabled(false)
                     .initiateScan()
-            }
-        })
-        layout.addView(Button(this).apply {
-            text = "Начать трансляцию"
-            setOnClickListener {
+            }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = pad / 2 })
+        layout.addView(emberButton("Начать трансляцию") {
                 if (address.text.toString().trim().isBlank()) {
                     status.text = "Укажите IP или найдите телевизор автоматически"
                     return@setOnClickListener
@@ -84,11 +89,12 @@ class MainActivity : Activity() {
                         overlayRequest
                     )
                 } else continueToCapture()
-            }
-        })
+            }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = pad / 2 })
         status = TextView(this).apply {
             text = "Готово к подключению"
             textSize = 14f
+            setTextColor(0xFFFFB978.toInt())
+            gravity = Gravity.CENTER
             setPadding(0, pad, 0, 0)
         }
         layout.addView(status)
