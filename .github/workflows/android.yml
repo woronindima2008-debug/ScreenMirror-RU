@@ -2,13 +2,15 @@ name: Android APK
 
 on:
   push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+    branches: [ main, feature/webrtc-p2p, fix/restore-cosmic-ui ]
   workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: screenmirror-android-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
