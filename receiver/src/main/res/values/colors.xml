@@ -1,8 +1,8 @@
 <resources>
-    <color name="ic_launcher_background">#050505</color>
-    <color name="theme_black">#050505</color>
-    <color name="theme_surface">#100C08</color>
-    <color name="theme_orange">#FF8A2B</color>
-    <color name="theme_ember">#FFB36B</color>
+    <color name="ic_launcher_background">#080403</color>
+    <color name="theme_black">#080403</color>
+    <color name="theme_surface">#1B0904</color>
+    <color name="theme_orange">#FF6A25</color>
+    <color name="theme_ember">#FFC15A</color>
     <color name="theme_text">#FFFFE8D5</color>
 </resources>
